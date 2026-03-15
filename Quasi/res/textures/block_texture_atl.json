@@ -1,0 +1,22 @@
+﻿{
+  "texSize": [6, 2],
+  "textures": [
+    {
+      "type": 1,
+      "default": {
+        "all": [3, 0]
+      },
+      "when": [
+        {
+          "state": {
+            "facing": [null, null, 0, null, null, null]
+          },
+          "texture": {
+            "all": [2, 0],
+            "sides": [null, null, [4, 0], null, null, null]
+          }
+        }
+      ]
+    }
+  ]
+}

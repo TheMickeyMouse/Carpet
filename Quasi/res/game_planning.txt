@@ -1,0 +1,34 @@
+﻿MY GAME:
+
+========CODE========
+Block
+ |-- IPushable
+ |    |-- Box
+ |    |-- Key...
+ |
+ |-- IImmovable
+ |    |-- Wall...
+ |
+ |-- IPlayable
+ |    |-- Player...
+ |
+ |-- IDecorator
+ |    |-- Flowers, Trees, ..
+ |
+ |-- ITrigger
+ |    |-- Button
+ |    |-- Lever...
+ |
+ |-- IReceiver
+ |    |-- Doors...
+ ...
+ 
+UIObject
+ |-- UIText
+ |-- UIButton
+ |-- UIGroup
+ 
+
+from_json(const json& j, T t) {
+    j.at("attr").get_to(t.attr)
+}
