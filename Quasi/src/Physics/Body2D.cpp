@@ -70,7 +70,7 @@ namespace Quasi::Physics2D {
         }
         const auto& t = GetTransform();
         fv2 c = t.MulD(baseBoundingBox.Center());
-        const fv2 p1 = t.MulD(baseBoundingBox.Corner({ false, false })), p2 = t.MulD(baseBoundingBox.Corner({ true, false }));
+        const fv2 p1 = t.MulD(baseBoundingBox.BottomLeft()), p2 = t.MulD(baseBoundingBox.TopLeft());
         const fv2 diff = { std::max(std::abs(p1.x - c.x), std::abs(p2.x - c.x)),
                            std::max(std::abs(p1.y - c.y), std::abs(p2.y - c.y)) };
         c += t.pos;

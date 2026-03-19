@@ -3,19 +3,6 @@
 #include "Vector.h"
 
 namespace Quasi::Math {
-    enum class Dir {
-        MIDDLE = 0,
-        CENTER = 0,
-        RIGHT = 1,
-        LEFT  = 2,
-        TOP,
-        BOTTOM,
-        FRONT,
-        BACK,
-        IN,
-        OUT,
-    };
-
     template <class T, usize N> struct Rect {
         using fT     = Common<T, f32>;
         using VecT   = Vector<T, N>;
@@ -102,32 +89,6 @@ namespace Quasi::Math {
         }
         T Area() const requires (N == 2) { return Volume(); }
 
-        VecT Corner(const bool (&rel)[N]) const { // each bool is a y/n decision on min or max (0 = min, 1 is max)
-            VecT result;
-            for (usize i = 0; i < N; ++i) result[i] = rel[i] ? max[i] : min[i];
-            return result;
-        }
-        VecT Corner(const Dir (&rel)[N]) const {
-            VecT result;
-            for (usize i = 0; i < N; ++i) result[i] = ((int)rel[i] & 1) ? max[i] : min[i];
-            return result;
-        }
-        VecT Anchor(const int (&rel)[N]) const { // each int is a ternary decision on min (-1), center (0) or max (1)
-            VecT result;
-            for (usize i = 0; i < N; ++i)
-                result[i] = rel[i] == -1 ? min[i] :
-                            rel[i] == 0 ? (min[i] + max[i]) / 2 :
-                            max[i];
-            return result;
-        }
-        VecT Anchor(const Dir (&rel)[N]) const {
-            VecT result;
-            for (usize i = 0; i < N; ++i)
-                result[i] = ((int)rel[i] & 1) ? min[i] :
-                            (rel[i] == Dir::MIDDLE) ? (min[i] + max[i]) / 2 :
-                            max[i];
-            return result;
-        }
         VecT Relative(const Vector<fT, N>& rel) const {
             VecT result;
             for (usize i = 0; i < N; ++i)
@@ -182,7 +143,7 @@ namespace Quasi::Math {
         }
         Rect Union(const Rect& other)     const { return { VecT::Min(min, other.min), VecT::Max(max, other.max) }; }
         Rect Expand(const VecT& other)    const { return { VecT::Min(min, other),     VecT::Max(max, other)     }; }
-        Rect intersect(const Rect& other) const { return { VecT::Max(min, other.min), VecT::Min(max, other.max) }; }
+        Rect Intersect(const Rect& other) const { return { VecT::Max(min, other.min), VecT::Min(max, other.max) }; }
 
         Rect Inset  (T radius)           const { return { min + radius, max - radius }; }
         Rect Inset  (const VecT& radius) const { return { min + radius, max - radius }; }

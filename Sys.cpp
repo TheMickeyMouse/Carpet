@@ -9,7 +9,7 @@
 
 
 #define GLFW_EXPOSE_NATIVE_WIN32
-#include "Carpet.h"
+#include "App.h"
 #include "Dependencies/GLFW/include/GLFW/glfw3.h"
 #include "Dependencies/GLFW/include/GLFW/glfw3native.h"
 
@@ -21,7 +21,7 @@ namespace Sys {
             TCHAR clsNameData[256] = {};
             Str className = Str::Slice(clsNameData, GetClassName(hwnd, clsNameData, 256));
             Debug::QInfo$("focused window '{}'", className);
-            Carpet::Instance->debug = className;
+            Carpet::App::Instance->debug = className;
             if (className == "WorkerW" || className == "Progman") {
                 Sleep(2);
                 SetWindowPos(hProgman, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);

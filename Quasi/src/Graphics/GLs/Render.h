@@ -76,6 +76,14 @@ namespace Quasi::Graphics {
         INVERT_CONST_ALPHA = 0x8004
     };
 
+    enum class BlendOp {
+        ADD = 0x8006,
+        SUBTRACT = 0x800A,
+        REV_SUBTRACT = 0x800B,
+        MIN = 0x8007,
+        MAX = 0x8008,
+    };
+
     enum class RenderMode {
         POINTS = 0x1B00, LINES = 0x1B01, FILL = 0x1B02
     };
@@ -198,6 +206,8 @@ namespace Quasi::Graphics::Render {
     void UseBlendConstColor(const Math::fColor& ref);
     void UseBlendFunc(BlendFactor src, BlendFactor dest);
     void UseBlendFuncSeparate(BlendFactor src, BlendFactor dest, BlendFactor srcAlpha, BlendFactor destAlpha);
+    void UseBlendEq(BlendOp eq);
+    void UseBlendEqSeparate(BlendOp eq, BlendOp eqAlpha);
 
     void SetCullFace(FacingMode facing);
     void SetFrontFacing(OrientationMode orientation);

@@ -1,7 +1,7 @@
-#include "Carpet.h"
+#include "App.h"
 
 int main() {
-    Carpet carpet;
+    Carpet::App carpet;
     while (carpet.Run()) {}
     return 0;
 }

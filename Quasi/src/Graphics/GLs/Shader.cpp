@@ -22,6 +22,10 @@ namespace Quasi::Graphics {
         return ShaderProgram { rendererID };
     }
 
+    ShaderProgram ShaderProgram::NewFragment(Str frag) {
+        return New("#version 330 core\n" QShaderVertexQuad$(), frag);
+    }
+
     ShaderProgram ShaderProgram::NewCompute(Str program) {
         const GraphicsID rendererID = CreateShaderCompute(program);
         return ShaderProgram { rendererID };
@@ -195,6 +199,10 @@ namespace Quasi::Graphics {
             geom.IsEmpty() ? "" : Text::ReadFile(geom).Assert()
         );
         return s;
+    }
+
+    ShaderProgram ShaderProgram::FromFragment(CStr frag) {
+        return New("#version 330 core\n" QShaderVertexQuad$(), Text::ReadFile(frag).Assert());
     }
 
     ShaderProgram ShaderProgram::FromFileCompute(CStr compute) {

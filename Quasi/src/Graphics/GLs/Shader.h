@@ -64,10 +64,12 @@ namespace Quasi::Graphics {
 
         static ShaderProgram New(Str program);
         static ShaderProgram New(Str vert, Str frag, Str geom = {});
+        static ShaderProgram NewFragment(Str frag);
         static ShaderProgram NewCompute(Str program);
 
         static ShaderProgram FromFile(CStr filepath);
         static ShaderProgram FromFile(CStr vert, CStr frag, CStr geom = {});
+        static ShaderProgram FromFragment(CStr frag);
         static ShaderProgram FromFileCompute(CStr compute);
 
         static bool IsArrayUnif(ShaderUniformType type);
@@ -157,7 +159,8 @@ namespace Quasi::Graphics {
 
 #pragma region Shader Sources
 #define QShader$(VERSION, V, F) "// #shader vertex\n" "#version " #VERSION "\n" V "\n// #shader fragment\n" "#version " #VERSION "\n" F
-#define QShaderQuad$(VERSION) QShader$(VERSION, "out vec2 vPosition; void main() { gl_Position = vec4(vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3))[gl_VertexID], 0, 1); vPosition = gl_Position.xy * 0.5 + 0.5;}", )
+#define QShaderVertexQuad$() "out vec2 vPosition; void main() { gl_Position = vec4(vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3))[gl_VertexID], 0, 1); vPosition = gl_Position.xy * 0.5 + 0.5;}"
+#define QShaderQuad$(VERSION) QShader$(VERSION, QShaderVertexQuad$(), )
     static constexpr Str StdColored =
         QShader$(330 core,
             "layout(location = 0) in vec4 position;\n"
