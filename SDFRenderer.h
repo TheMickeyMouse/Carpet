@@ -26,6 +26,8 @@ namespace Carpet {
           RenderObject<Vtx> render;
           Mesh<Vtx> mesh;
      public:
+          float bevelSize = 40.0f;
+     public:
           SDFRenderer(GraphicsDevice& gd);
 
           Texture2D& GetHeightmap() { return heightmap; }

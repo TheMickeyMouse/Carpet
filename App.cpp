@@ -18,11 +18,10 @@ namespace Carpet {
         background      = Texture2D::LoadPNG("../plain.png");
         backgroundGlass = Texture2D::LoadPNG("../glass.png");
         glassShader     = Shader::FromFragment("../glass.glsl");
+        heightVis       = Shader::FromFragment("../height.glsl");
     }
 
     bool App::Run() {
-        Render::SetClearColor({ 0.8f, 1.0f });
-
         gdevice.Begin();
         canvas.BeginFrame();
 
@@ -38,23 +37,37 @@ namespace Carpet {
             return false;
         }
 
-        renderer.DrawBox({ { 300, 400 }, { 600, 1000 } }, 50);
+        renderer.DrawBox(rect, 50);
         renderer.DrawCirc(pos, 200);
         renderer.Render();
 
-        glassShader.Bind();
-        glassShader.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
-        glassShader.SetUniformTex("bgPlain", background,      1);
-        glassShader.SetUniformTex("bgGlass", backgroundGlass, 2);
-        glassShader.SetUniformFv3("lightSource", { 0.1, 0.5, 1.4 });
-        glassShader.SetUniformFloat("eta", eta);
-        Render::DrawScreenQuad(glassShader);
+        if (debugHeightmap) {
+            heightVis.Bind();
+            heightVis.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
+            heightVis.SetUniformFloat("extrudeZ", renderer.bevelSize);
+            Render::DrawScreenQuad(heightVis);
+        } else {
+            glassShader.Bind();
+            glassShader.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
+            glassShader.SetUniformTex("bgPlain", background,      1);
+            glassShader.SetUniformTex("bgGlass", backgroundGlass, 2);
+            glassShader.SetUniformFv3("lightSource", { 960.0f, 540.0f, 100.0f });
+            glassShader.SetUniformFv2("screenSize", (fv2)gdevice.GetWindowSize());
+            glassShader.SetUniformFloat("eta", eta);
+            glassShader.SetUniformFloat("height", height);
+            // glassShader.SetUniformFloat("maxZ", renderer.bevelSize);
+            Render::DrawScreenQuad(glassShader);
+        }
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();
 
         ImGui::EditVector("circle pos", pos);
+        ImGui::EditRect("rect", rect);
         ImGui::EditScalar("eta", eta, 0.01f, fRange { 0, 1 });
+        ImGui::EditScalar("height", height);
+        ImGui::EditScalar("bevel", renderer.bevelSize);
+        debugHeightmap ^= ImGui::Button("View Heightmap");
 
         gdevice.End();
         return gdevice.WindowIsOpen();

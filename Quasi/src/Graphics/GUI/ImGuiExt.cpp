@@ -129,8 +129,8 @@ namespace ImGui {
         const float fullWidth = GetItemDefaultWidth(width) - (float)(N - 1) * GetSpacingWidth(),
                     unitWidth = fullWidth / (float)N;
 
+        PushID(title.Data());
         for (Q u32 i = 0; i < N; ++i) {
-            PushID(title.Data());
             EditScalarWithIcon(
                 &"X:\0Y:\0Z:\0W:"[i * 3],
                 Q Array { COLOR_X_AXIS, COLOR_Y_AXIS, COLOR_Z_AXIS, COLOR_W_AXIS }[i], // amazing hack
@@ -141,8 +141,8 @@ namespace ImGui {
                 unitWidth
             );
             if (i != N - 1) SameLine();
-            PopID();
         }
+        PopID();
     }
 
     template <class T>
@@ -170,10 +170,11 @@ namespace ImGui {
         const float rWidth = GetItemDefaultWidth(width);
         PushID(title.Data());
         EditVector("Min", range.min, speed, constraint, rWidth);
-        Indent(GetItemRemainingWidth(width));
+        const float indent = GetItemRemainingWidth(width);
+        Indent(indent);
         EditVector("Max", range.max, speed, constraint, rWidth);
         PopID();
-        Unindent(GetItemRemainingWidth(width));
+        Unindent(indent);
     }
 
     Q_IMGUI_EDITOR(EditRotation2D, Q Math::Rotor2D& rot2) {

@@ -15,9 +15,10 @@ namespace Carpet {
 
         Texture2D background, backgroundGlass;
         SDFRenderer renderer;
-        Shader glassShader;
-        float g = 1.0f, eta = 0.667;
-        fv2 pos;
+        Shader glassShader, heightVis;
+        float g = 1.0f, eta = 0.667, height = 0.1f;
+        fv2 pos = { 1200, 700 }; fRect2D rect = { { 200, 300 }, { 800, 800 } };
+        bool debugHeightmap = false;
     public:
         String debug = "test";
 

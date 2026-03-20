@@ -48,13 +48,13 @@ namespace Carpet {
             // returns dx, z, dz
             "vec3 profile(float dist) {"
             "   float d = clamp(1 + dist / extrudeZ, 0, 1), y = sqrt(1 - d * d);"
-            "   return vec3(d, y, y);"
+            "   return vec3(d, y * extrudeZ, y);"
             "}"
             "\n"
             "void main() {\n"
             "   vec4 sdf = SDF(vUVW, vPrim);\n"
             "   vec3 hzx = profile(sdf.w);\n"
-            "   vec4 hmap = vec4(hzx.x * sdf.xy, hzx.z * sdf.z, hzx.y);\n"
+            "   vec4 hmap = vec4(normalize(vec3(hzx.x * sdf.xy, hzx.z * sdf.z)), hzx.y);\n"
             "   glColor = hmap;"
             "}\n"
         ));
@@ -71,7 +71,7 @@ namespace Carpet {
         render.Draw(Spans::Only(mesh), {
             .arguments = {
                 { "screenSize", (fv2)canvasSize },
-                { "extrudeZ",   60.0f }
+                { "extrudeZ",   bevelSize }
             },
             .useDefaultArguments = false
         });
