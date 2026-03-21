@@ -6,24 +6,38 @@ uniform vec3 lightSource;
 uniform vec2 screenSize;
 uniform float eta, height;
 
-bool castRay(in vec3 origin, in vec3 dir, out float resT) {
-    float dt = 0.01;
-    float mint = 0.01;
-    float maxt = 160.0;
+bool castRay(in vec3 origin, in vec3 dir, inout float resT) {
+    // future, better method
+    // goal: finding intersection of
+    // h(x) = -texture(heightmap, p.xy / screenSize).w;
+    // f(x) = (mx + b) / f0;
+    // equivalent to finding root of f0 * h(x) - (mx + b)
+
+    float dt = 0.00990099009901;
+    float mint = 1.0;
+    float maxt = 300.0;
     float lh = 0.0;
     float ly = 0.0;
+
+//    float tryLen = origin.z / -dir.z;
+//    vec3 tryOrigin = origin + tryLen * dir;
+//    bool outOfBounds = texture(heightmap, tryOrigin.xy / screenSize).w == 0.0;
+//    origin = outOfBounds ? origin : tryOrigin;
+//    float s = outOfBounds ? 1 : -1;
+//    resT = outOfBounds ? 0.0 : tryLen;
+
     for (float t = mint; t < maxt; t += dt)  {
         vec3  p = origin + dir * t;
-        float h = -texture(heightmap, p.xy).w;
+        float h = -texture(heightmap, p.xy / screenSize).w;
         if (p.z < h) {
             // interpolate intersection distance
-            resT = t-dt+dt*(lh-ly)/(p.y-ly-h+lh);
+            resT += t - dt + dt * (lh - ly) / (p.z - ly - h + lh);
             return true;
         }
-        // accuracy proportional to the distance
         lh = h;
         ly = p.z;
-        dt = 0.05 * t;
+        // accuracy proportional to the distance
+        dt = 0.99 + 0.01 * t;
     }
     return false;
 }
@@ -43,8 +57,8 @@ void main() {
     vec3 n = normalize(h.xyz);
     vec3 dir = refract(vec3(0, 0, -1), n, eta);
 
-    float raylen = 0.0;
-    bool hasHit = castRay(pos / vec3(screenSize, 1.0), dir / vec3(screenSize, 1.0), raylen);
+    float raylen = pos.z / -dir.z;
+    bool hasHit = castRay(pos + dir * raylen, dir, raylen);
     if (!hasHit) {
         glColor = vec4(1.0, 0.0, 1.0, 1.0);
         return;
@@ -57,6 +71,6 @@ void main() {
     vec2 screenHit = hit.xy + escapeDir.xy * (hit.z + height);
     // glColor = vec4(screenHit, 0.0, 1.0);
     vec3 result = texture(bgGlass, screenHit / screenSize).xyz;
-    result *= 0.85 + pow4(dot(normalize(lightSource - pos), n));
+    result *= 0.85 + pow4(dot(lightSource, n));
     glColor = vec4(result, 1.0);
 }

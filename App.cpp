@@ -51,7 +51,7 @@ namespace Carpet {
             glassShader.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
             glassShader.SetUniformTex("bgPlain", background,      1);
             glassShader.SetUniformTex("bgGlass", backgroundGlass, 2);
-            glassShader.SetUniformFv3("lightSource", { 960.0f, 540.0f, 100.0f });
+            glassShader.SetUniformFv3("lightSource", { 0.6, 0.8, 0 });
             glassShader.SetUniformFv2("screenSize", (fv2)gdevice.GetWindowSize());
             glassShader.SetUniformFloat("eta", eta);
             glassShader.SetUniformFloat("height", height);
