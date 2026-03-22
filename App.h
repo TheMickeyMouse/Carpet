@@ -18,7 +18,7 @@ namespace Carpet {
         Shader glassShader, heightVis;
         float g = 1.0f, eta = 0.667, height = 60.0f;
         fv2 pos = { 1200, 700 }; fRect2D rect = { { 200, 300 }, { 800, 800 } };
-        bool debugHeightmap = false;
+        bool debugHeightmap = false, showActualHeight = false;
     public:
         String debug = "test";
 

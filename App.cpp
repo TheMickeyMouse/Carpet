@@ -38,13 +38,15 @@ namespace Carpet {
         }
 
         renderer.DrawBox(rect, 50);
-        renderer.DrawCirc(pos, 200);
+        renderer.DrawCirc(pos, 100);
+        renderer.DrawCirc({ 1400, 400 }, 100);
         renderer.Render();
 
         if (debugHeightmap) {
             heightVis.Bind();
             heightVis.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
-            heightVis.SetUniformFloat("extrudeZ", renderer.bevelSize);
+            heightVis.SetUniformFloat("bevelRadius", renderer.bevelRadius);
+            heightVis.SetUniformInt("showActualHeight", showActualHeight);
             Render::DrawScreenQuad(heightVis);
         } else {
             glassShader.Bind();
@@ -66,8 +68,10 @@ namespace Carpet {
         ImGui::EditRect("rect", rect);
         ImGui::EditScalar("eta", eta, 0.01f, fRange { 0, 1 });
         ImGui::EditScalar("height", height);
-        ImGui::EditScalar("bevel", renderer.bevelSize);
+        ImGui::EditScalar("bevel", renderer.bevelRadius);
+        ImGui::EditScalar("smoothing", renderer.strength);
         debugHeightmap ^= ImGui::Button("View Heightmap");
+        ImGui::Checkbox("Show Actual Height", &showActualHeight);
 
         gdevice.End();
         return gdevice.WindowIsOpen();

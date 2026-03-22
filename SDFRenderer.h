@@ -19,18 +19,20 @@ namespace Carpet {
           };
 
           FrameBuffer fbo;
-          Texture2D heightmap;
-          RenderBuffer depthBuffer;
+          Texture2D distanceMap, heightMap;
           iv2 canvasSize;
 
           RenderObject<Vtx> render;
           Mesh<Vtx> mesh;
+          Shader heightCalcShader;
+
+          static constexpr float PADDING = 0.2f;
      public:
-          float bevelSize = 40.0f;
+          float bevelRadius = 40.0f, strength = 5.0f;
      public:
           SDFRenderer(GraphicsDevice& gd);
 
-          Texture2D& GetHeightmap() { return heightmap; }
+          Texture2D& GetHeightmap() { return heightMap; }
 
           void Render();
 
