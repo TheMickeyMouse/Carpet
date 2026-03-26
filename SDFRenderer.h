@@ -26,13 +26,17 @@ namespace Carpet {
           Mesh<Vtx> mesh;
           Shader heightCalcShader;
 
-          static constexpr float PADDING = 0.2f;
+          float strength = 5.0f, padding;
      public:
-          float bevelRadius = 40.0f, strength = 5.0f;
+          float bevelRadius = 40.0f;
      public:
           SDFRenderer(GraphicsDevice& gd);
 
           Texture2D& GetHeightmap() { return heightMap; }
+
+          float GetPadding() const;
+          void SetSmoothing(float strength);
+          float GetSmoothingStrength() const { return strength; }
 
           void Render();
 

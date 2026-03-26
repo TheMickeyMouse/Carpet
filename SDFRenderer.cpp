@@ -4,7 +4,9 @@
 
 namespace Carpet {
     SDFRenderer::SDFRenderer(GraphicsDevice& gd)
-        : canvasSize(gd.GetWindowSize()), render(gd.CreateNewRender<Vtx>()) {
+        : canvasSize(gd.GetWindowSize()), render(gd.CreateNewRender<Vtx>()), padding(GetPadding()) {
+        // stores gradient (X, Y), exp distance
+        //        in        R  G   B
         distanceMap = Texture2D::New(nullptr, canvasSize, {
             .internalformat = TextureIFormat::RGB_32F, .type = TID::FLOAT,
         });
@@ -47,7 +49,7 @@ namespace Carpet {
             "void main() {\n"
             "   vec3 sdf = SDF(vUVW, vPrim);\n"
             "   float s = exp(-sdf.z / strength);\n"
-            "   glColor = vec4(sdf.xy * s, s, 1.0);"
+            "   glColor = vec4(sdf.xy * s, s, -sdf.z);"
             "}\n"
         ));
         heightCalcShader = Shader::NewFragment(
@@ -61,10 +63,25 @@ namespace Carpet {
             "   float d = d_gra.z;\n"
             "   float h = clamp(log(d) * strength, 0, bevelRadius);\n"
             "   float z = sqrt((2 * bevelRadius - h) * h);\n"
-            "   vec3 n = vec3(d_gra.xy * ((h - bevelRadius)), d * z);\n"
-            "   glColor = vec4(normalize(n), z);\n"
+            "   vec3 n = vec3(d_gra.xy * (bevelRadius - h), d * z);\n"
+            "   glColor = z > 0.0 ? vec4(normalize(n), z) : vec4(0.0, 0.0, 1.0, 0.0);\n"
             "}\n"
         );
+    }
+
+    float SDFRenderer::GetPadding() const {
+        static constexpr float DISCARD_THRESHOLD = 0.01;
+        // H = exp(-d / strength); we want to find when this is lower
+        // than the discard threshold;
+
+        // threshold = exp(-d / strength);
+        // -strength * log(threshold) = d
+        return -strength * std::log(DISCARD_THRESHOLD);
+    }
+
+    void SDFRenderer::SetSmoothing(float strength) {
+        this->strength = strength;
+        padding = GetPadding();
     }
 
     void SDFRenderer::Render() {
@@ -106,10 +123,10 @@ namespace Carpet {
     void SDFRenderer::DrawBox(const fRect2D& rect, float r) {
         auto b = mesh.NewBatch();
 
-        const float p = r * PADDING;
-        const float xs[4] = { rect.max.x + p, rect.max.x - r, rect.min.x + r, rect.min.x - p },
-                    ys[4] = { rect.max.y + p, rect.max.y - r, rect.min.y + r, rect.min.y - p };
-        static constexpr float UVs[4] = { 1 + PADDING, 0, 0, -1 - PADDING };
+        const float p = padding / r;
+        const float xs[4] = { rect.max.x + padding, rect.max.x - r, rect.min.x + r, rect.min.x - padding },
+                    ys[4] = { rect.max.y + padding, rect.max.y - r, rect.min.y + r, rect.min.y - padding };
+        const float UVs[4] = { 1 + p, 0, 0, -1 - p };
 
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -129,13 +146,24 @@ namespace Carpet {
     }
 
     void SDFRenderer::DrawCirc(const fv2& center, float r) {
+        // by rendering an octogon, we waste very little area with low polygons
+        // circle:   true area = π = 3.14159..., area waste = 1 - π/area
+
+        // triangle: mesh area = 3√3 = 5.1962..., waste = 39.54%;
+        // square:   mesh area = 4,               waste = 21.46%;
+        // hexagon:  mesh area = 2√3 = 3.4641..., waste =  9.31%;
+        // octagon:     area = 8√2-8 = 3.3137..., waste =  5.19%;
         auto b = mesh.NewBatch();
-        const float p = r * (ROOT_2 * (1 + PADDING));
-        static constexpr float U = ROOT_2 * (1 + PADDING);
-        b.PushV({ { center.x + p, center.y }, { +U, 0, r }, CIRCLE });
-        b.PushV({ { center.x, center.y + p }, { 0, +U, r }, CIRCLE });
-        b.PushV({ { center.x - p, center.y }, { -U, 0, r }, CIRCLE });
-        b.PushV({ { center.x, center.y - p }, { 0, -U, r }, CIRCLE });
-        b.Quad(0, 1, 2, 3);
+        const float R = r + padding, S = R * (ROOT_2 - 1.0f),
+                    U = R / r, V = U * (ROOT_2 - 1.0f);
+        b.PushV({ { center.x - S, center.y + R }, { -V, +U, r }, CIRCLE });
+        b.PushV({ { center.x + S, center.y + R }, { +V, +U, r }, CIRCLE });
+        b.PushV({ { center.x + R, center.y + S }, { +U, +V, r }, CIRCLE });
+        b.PushV({ { center.x + R, center.y - S }, { +U, -V, r }, CIRCLE });
+        b.PushV({ { center.x + S, center.y - R }, { +V, -U, r }, CIRCLE });
+        b.PushV({ { center.x - S, center.y - R }, { -V, -U, r }, CIRCLE });
+        b.PushV({ { center.x - R, center.y - S }, { -U, -V, r }, CIRCLE });
+        b.PushV({ { center.x - R, center.y + S }, { -U, +V, r }, CIRCLE });
+        b.TriFan((const u32[]) { 0, 1, 2, 3, 4, 5, 6, 7 });
     }
 }

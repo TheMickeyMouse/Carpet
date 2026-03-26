@@ -17,7 +17,7 @@ namespace Carpet {
 
         background      = Texture2D::LoadPNG("../plain.png");
         backgroundGlass = Texture2D::LoadPNG("../glass.png");
-        glassShader     = Shader::FromFragment("../glass.glsl");
+        glassShader     = Shader::FromFragment("../glass2.glsl");
         heightVis       = Shader::FromFragment("../height.glsl");
     }
 
@@ -44,19 +44,24 @@ namespace Carpet {
 
         if (debugHeightmap) {
             heightVis.Bind();
-            heightVis.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
-            heightVis.SetUniformFloat("bevelRadius", renderer.bevelRadius);
-            heightVis.SetUniformInt("showActualHeight", showActualHeight);
+            heightVis.SetUniformArgs({
+                { "heightmap",        renderer.GetHeightmap(), 0 },
+                { "bevelRadius",      renderer.bevelRadius },
+                { "showActualHeight", showActualHeight }
+            });
             Render::DrawScreenQuad(heightVis);
         } else {
             glassShader.Bind();
-            glassShader.SetUniformTex("heightmap", renderer.GetHeightmap(), 0);
-            glassShader.SetUniformTex("bgPlain", background,      1);
-            glassShader.SetUniformTex("bgGlass", backgroundGlass, 2);
-            glassShader.SetUniformFv3("lightSource", { 0.6, 0.8, 0 });
-            glassShader.SetUniformFv2("screenSize", (fv2)gdevice.GetWindowSize());
-            glassShader.SetUniformFloat("eta", eta);
-            glassShader.SetUniformFloat("height", height);
+            glassShader.SetUniformArgs({
+                { "heightmap",  renderer.GetHeightmap(), 0 },
+                { "bgPlain",    background,      1 },
+                { "bgGlass",    backgroundGlass, 2 },
+                { "lightSource", fv3 { 0.36, 0.48, 0.8 } },
+                { "screenSize", (fv2)gdevice.GetWindowSize() },
+                { "eta",         eta },
+                { "height",      height },
+                { "bevelRadius", renderer.bevelRadius },
+            });
             // glassShader.SetUniformFloat("maxZ", renderer.bevelSize);
             Render::DrawScreenQuad(glassShader);
         }
@@ -69,7 +74,11 @@ namespace Carpet {
         ImGui::EditScalar("eta", eta, 0.01f, fRange { 0, 1 });
         ImGui::EditScalar("height", height);
         ImGui::EditScalar("bevel", renderer.bevelRadius);
-        ImGui::EditScalar("smoothing", renderer.strength);
+
+        float s = renderer.GetSmoothingStrength();
+        ImGui::EditScalar("smoothing", s);
+        if (s != renderer.GetSmoothingStrength()) renderer.SetSmoothing(s);
+
         debugHeightmap ^= ImGui::Button("View Heightmap");
         ImGui::Checkbox("Show Actual Height", &showActualHeight);
 
