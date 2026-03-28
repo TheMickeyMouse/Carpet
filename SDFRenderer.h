@@ -42,5 +42,7 @@ namespace Carpet {
 
           void DrawBox(const fRect2D& rect, float r);
           void DrawCirc(const fv2& center, float r);
+
+          friend class GlassRenderer;
      };
 }

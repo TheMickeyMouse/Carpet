@@ -1,6 +1,6 @@
 #pragma once
 #include "GraphicsDevice.h"
-#include "SDFRenderer.h"
+#include "GlassRenderer.h"
 #include "GUI/Canvas.h"
 
 using namespace Quasi;
@@ -12,19 +12,12 @@ namespace Carpet {
     private:
         GraphicsDevice gdevice;
         Canvas canvas;
+        GlassRenderer glassRenderer;
 
-        Texture2D background, backgroundGlass;
-        SDFRenderer renderer;
-        Shader glassShader, heightVis;
-        float g = 1.0f, eta = 0.667, height = 60.0f;
-        fv2 pos = { 1200, 700 }; fRect2D rect = { { 200, 300 }, { 800, 800 } };
-        bool debugHeightmap = false, showActualHeight = false;
+        fv2 pos = {};
+        Rotor2D light = Degrees(60.0f);
     public:
-        String debug = "test";
-
         App();
         bool Run();
-
-        void Trigger();
     };
 }

@@ -1,6 +1,7 @@
 #include "Sys.h"
 #include "App.h"
 
+#include "glp.h"
 #include "GUI/ImGuiExt.h"
 
 namespace Carpet {
@@ -9,16 +10,17 @@ namespace Carpet {
             .resizable = false, .decorated = false, .initalFocused = false,
             .floating = false,
             .transparent = true, .focusOnShow = false
-        })), canvas(gdevice), renderer(gdevice) {
+        })), canvas(gdevice), glassRenderer(gdevice) {
 #ifdef CARPET_SET_BACKGROUND_BY_DEFAULT
         Sys::PrepareBgWindow(gdevice);
 #endif
         Instance = *this;
 
-        background      = Texture2D::LoadPNG("../plain.png");
-        backgroundGlass = Texture2D::LoadPNG("../glass.png");
-        glassShader     = Shader::FromFragment("../glass2.glsl");
-        heightVis       = Shader::FromFragment("../height.glsl");
+        glassRenderer.background      = Texture2D::LoadPNG("../bg_day_plain.png");
+        glassRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_day_glass.png");
+        glassRenderer.SetBevel(25);
+        glassRenderer.height = 80.0f;
+        glassRenderer.lightDirection = fv3 { 4, 7, 10 };
     }
 
     bool App::Run() {
@@ -37,56 +39,28 @@ namespace Carpet {
             return false;
         }
 
-        renderer.DrawBox(rect, 50);
-        renderer.DrawCirc(pos, 100);
-        renderer.DrawCirc({ 1400, 400 }, 100);
-        renderer.Render();
-
-        if (debugHeightmap) {
-            heightVis.Bind();
-            heightVis.SetUniformArgs({
-                { "heightmap",        renderer.GetHeightmap(), 0 },
-                { "bevelRadius",      renderer.bevelRadius },
-                { "showActualHeight", showActualHeight }
-            });
-            Render::DrawScreenQuad(heightVis);
-        } else {
-            glassShader.Bind();
-            glassShader.SetUniformArgs({
-                { "heightmap",  renderer.GetHeightmap(), 0 },
-                { "bgPlain",    background,      1 },
-                { "bgGlass",    backgroundGlass, 2 },
-                { "lightSource", fv3 { 0.36, 0.48, 0.8 } },
-                { "screenSize", (fv2)gdevice.GetWindowSize() },
-                { "eta",         eta },
-                { "height",      height },
-                { "bevelRadius", renderer.bevelRadius },
-            });
-            // glassShader.SetUniformFloat("maxZ", renderer.bevelSize);
-            Render::DrawScreenQuad(glassShader);
-        }
+        glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
+        glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
+        glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
+        glassRenderer.Render();
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();
 
-        ImGui::EditVector("circle pos", pos);
-        ImGui::EditRect("rect", rect);
-        ImGui::EditScalar("eta", eta, 0.01f, fRange { 0, 1 });
-        ImGui::EditScalar("height", height);
-        ImGui::EditScalar("bevel", renderer.bevelRadius);
+        float s = glassRenderer.GetSmoothingStrength();
+        ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
+        if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
 
-        float s = renderer.GetSmoothingStrength();
-        ImGui::EditScalar("smoothing", s);
-        if (s != renderer.GetSmoothingStrength()) renderer.SetSmoothing(s);
+        glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
+        ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
-        debugHeightmap ^= ImGui::Button("View Heightmap");
-        ImGui::Checkbox("Show Actual Height", &showActualHeight);
+        ImGui::EditVector("Pos", pos);
+        ImGui::EditRotation2D("Light", light);
+        glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
+
+        ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 
         gdevice.End();
         return gdevice.WindowIsOpen();
-    }
-
-    void App::Trigger() {
-        g = 1.0f;
     }
 }

@@ -21,7 +21,6 @@ namespace Sys {
             TCHAR clsNameData[256] = {};
             Str className = Str::Slice(clsNameData, GetClassName(hwnd, clsNameData, 256));
             Debug::QInfo$("focused window '{}'", className);
-            Carpet::App::Instance->debug = className;
             if (className == "WorkerW" || className == "Progman") {
                 Sleep(2);
                 SetWindowPos(hProgman, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);

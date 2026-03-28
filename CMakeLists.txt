@@ -14,5 +14,7 @@ add_executable(Carpet main.cpp
         SDFRenderer.h
         SDF.cpp
         SDF.h
-        Common.h)
+        Common.h
+        GlassRenderer.cpp
+        GlassRenderer.h)
 target_link_libraries(Carpet PUBLIC Quasi)

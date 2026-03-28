@@ -63,15 +63,15 @@ namespace Quasi::Math {
         const T& operator[](usize i) const { return Data()[i]; }
 
         template <usize M>
-        Vector<T, M> Swizzle(const char (&swizzle)[M + 1]) const {
-            Vector<T, M> swizzled;
-            for (usize i = 0; i < M; ++i) {
+        Vector<T, M - 1> Swizzle(const char (&swizzle)[M]) const {
+            Vector<T, M - 1> swizzled;
+            for (usize i = 0; i < M - 1; ++i) {
                 const usize comp = CompFromName(swizzle[i]);
                 swizzled[i] = comp == -1 ? 0 : At(comp);
             }
             return swizzled;
         }
-        template <usize M> Vector<T, M> operator[](const char (&swizzle)[M + 1]) { return Swizzle(swizzle); }
+        template <usize M> Vector<T, M - 1> operator[](const char (&swizzle)[M]) { return Swizzle(swizzle); }
 
         usize Dimensions() const { return N; }
 

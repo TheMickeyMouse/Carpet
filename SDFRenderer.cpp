@@ -15,58 +15,58 @@ namespace Carpet {
         });
         fbo = FrameBuffer::New();
 
-        render.UseShader(QShader$(330 core,
-            "layout (location = 0) in vec2 position;\n"
-            "layout (location = 1) in vec3 uvw;\n"
-            "layout (location = 2) in int prim;\n"
-            "out vec3 vUVW;\n"
-            "flat out int vPrim;"
-            "uniform vec2 screenSize;\n"
-            "\n"
-            "void main() {\n"
-            "   gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);\n"
-            "   vUVW = uvw;\n"
-            "   vPrim = prim;\n"
-            "}\n",
-            "layout (location = 0) out vec4 glColor;\n"
-            "in vec3 vUVW;\n"
-            "flat in int vPrim;\n"
-            "uniform float strength;\n"
-            "\n"
+        render.UseShader(QShader$(330 core, R"(
+            layout (location = 0) in vec2 position;
+            layout (location = 1) in vec3 uvw;
+            layout (location = 2) in int prim;
+            out vec3 vUVW;
+            flat out int vPrim;
+            uniform vec2 screenSize;
+
+            void main() {
+               gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);
+               vUVW = uvw;
+               vPrim = prim;
+            }
+        )", R"(
+            layout (location = 0) out vec4 glColor;
+            in vec3 vUVW;
+            flat in int vPrim;
+            uniform float strength;
+
             // returns gradient + distance
-            "vec3 sdfCirc(vec2 p, float r) {\n"
-            "   float l = length(p);"
-            "   return vec3(p / l, (l - 1.0) * r);"
-            "}\n"
-            ""
-            "vec3 SDF(vec3 uvw, int prim) {\n"
-            "   switch (prim) {\n"
-            "       case 0: return sdfCirc(uvw.xy, uvw.z);\n"
-            "       case 1: return vec3(0, 0, uvw.x);\n"
-            "   }\n"
-            "}\n"
-            "\n"
-            "void main() {\n"
-            "   vec3 sdf = SDF(vUVW, vPrim);\n"
-            "   float s = exp(-sdf.z / strength);\n"
-            "   glColor = vec4(sdf.xy * s, s, -sdf.z);"
-            "}\n"
-        ));
-        heightCalcShader = Shader::NewFragment(
-            "#version 330 core\n"
-            "layout (location = 0) out vec4 glColor;\n"
-            "in vec2 vPosition;\n"
-            "uniform sampler2D disGraMap;\n"
-            "uniform float bevelRadius, strength;\n"
-            "void main() {\n"
-            "   vec4 d_gra = texture(disGraMap, vPosition);\n"
-            "   float d = d_gra.z;\n"
-            "   float h = clamp(log(d) * strength, 0, bevelRadius);\n"
-            "   float z = sqrt((2 * bevelRadius - h) * h);\n"
-            "   vec3 n = vec3(d_gra.xy * (bevelRadius - h), d * z);\n"
-            "   glColor = z > 0.0 ? vec4(normalize(n), z) : vec4(0.0, 0.0, 1.0, 0.0);\n"
-            "}\n"
-        );
+            vec3 sdfCirc(vec2 p, float r) {
+               float l = length(p);
+               return vec3(p / l, (l - 1.0) * r);
+            }
+            vec3 SDF(vec3 uvw, int prim) {
+               switch (prim) {
+                   case 0: return sdfCirc(uvw.xy, uvw.z);
+                   case 1: return vec3(0, 0, uvw.x);
+               }
+            }
+
+            void main() {
+               vec3 sdf = SDF(vUVW, vPrim);
+               float s = exp(min(-sdf.z / strength, 20.0));
+               glColor = vec4(sdf.xy * s, s, -sdf.z);
+            }
+        )"));
+        heightCalcShader = Shader::NewFragment(R"(
+            #version 330 core
+            layout (location = 0) out vec4 glColor;
+            in vec2 vPosition;
+            uniform sampler2D disGraMap;
+            uniform float bevelRadius, strength;
+            void main() {
+               vec4 d_gra = texture(disGraMap, vPosition);
+               float d = d_gra.z;
+               float h = clamp(log(d) * strength, 0, bevelRadius);
+               float z = sqrt((2 * bevelRadius - h) * h);
+               vec3 n = vec3(d_gra.xy * (bevelRadius - h), d * z);
+               glColor = z > 0.0 ? vec4(normalize(n), z) : vec4(0.0, 0.0, 1.0, 0.0);
+            }
+        )");
     }
 
     float SDFRenderer::GetPadding() const {
