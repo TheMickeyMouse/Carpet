@@ -18,7 +18,7 @@ namespace Carpet {
 
         glassRenderer.background      = Texture2D::LoadPNG("../bg_day_plain.png");
         glassRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_day_glass.png");
-        glassRenderer.SetBevel(25);
+        glassRenderer.bevelRadius = 25;
         glassRenderer.height = 80.0f;
         glassRenderer.lightDirection = fv3 { 4, 7, 10 };
     }
@@ -58,7 +58,7 @@ namespace Carpet {
         ImGui::EditRotation2D("Light", light);
         glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-        ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
+        // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 
         gdevice.End();
         return gdevice.WindowIsOpen();

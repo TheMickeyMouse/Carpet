@@ -10,8 +10,8 @@
 
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include "App.h"
-#include "Dependencies/GLFW/include/GLFW/glfw3.h"
-#include "Dependencies/GLFW/include/GLFW/glfw3native.h"
+#include "../Dependencies/GLFW/include/GLFW/glfw3.h"
+#include "../Dependencies/GLFW/include/GLFW/glfw3native.h"
 
 namespace Sys {
     HWND hProgman = nullptr, hWindow = nullptr;

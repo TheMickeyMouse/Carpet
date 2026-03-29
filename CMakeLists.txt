@@ -6,15 +6,12 @@ set(CMAKE_CXX_STANDARD 20)
 add_subdirectory(Quasi)
 add_subdirectory(OpenGLPort)
 add_executable(Carpet main.cpp
-        App.cpp
-        App.h
-        Sys.cpp
-        Sys.h
-        SDFRenderer.cpp
-        SDFRenderer.h
-        SDF.cpp
-        SDF.h
-        Common.h
-        GlassRenderer.cpp
-        GlassRenderer.h)
+    src/App.cpp
+    src/App.h
+    src/Sys.cpp
+    src/Sys.h
+    src/Common.h
+    src/GlassRenderer.cpp
+    src/GlassRenderer.h)
+target_link_directories(Carpet PUBLIC src)
 target_link_libraries(Carpet PUBLIC Quasi)
