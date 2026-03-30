@@ -15,60 +15,116 @@ namespace Carpet {
         });
         fbo = FrameBuffer::New();
 
-        render.UseShader(QShader$(330 core, R"(
-            layout (location = 0) in vec2 position;
-            layout (location = 1) in vec3 uvw;
-            layout (location = 2) in int prim;
-            out vec3 vUVW;
-            flat out int vPrim;
-            uniform vec2 screenSize;
+#pragma region Shaders
+        // language=GLSL
+        render->shader = Shader::New(
+// vertex
+R"(
+#version 330 core
+layout (location = 0) in vec2 position;
+layout (location = 1) in vec3 uvw;
+layout (location = 2) in int prim;
+out vec3 vUVW;
+flat out int vPrim;
+uniform vec2 screenSize;
 
-            void main() {
-               gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);
-               vUVW = uvw;
-               vPrim = prim;
-            }
-        )", R"(
-            layout (location = 0) out vec4 glColor;
-            in vec3 vUVW;
-            flat in int vPrim;
-            uniform float strength, bevelRadius;
+void main() {
+   gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);
+   vUVW = uvw;
+   vPrim = prim;
+}
+)",
+// fragment
+R"(
+#version 330 core
+layout (location = 0) out vec4 glColor;
+in vec3 vUVW;
+flat in int vPrim;
+uniform float strength, bevelRadius;
 
-            // returns gradient + distance
-            vec3 sdfCirc(vec2 p, float r) {
-               float l = length(p);
-               return vec3(p / l, (l - 1.0) * r);
-            }
-            vec3 SDF(vec3 uvw, int prim) {
-               switch (prim) {
-                   case 0: return sdfCirc(uvw.xy, uvw.z);
-                   case 1: return vec3(0, 0, uvw.x);
-               }
-            }
+// returns gradient + distance
+vec3 sdfCirc(vec2 p, float r) {
+   float l = length(p);
+   return vec3(p / l, (l - 1.0) * r);
+}
+vec3 SDF(vec3 uvw, int prim) {
+   switch (prim) {
+       case 0: return sdfCirc(uvw.xy, uvw.z);
+       case 1: return vec3(0, 0, uvw.x);
+       default: return vec3(0);
+   }
+}
 
-            void main() {
-               vec3 sdf = SDF(vUVW, vPrim);
-               float s = exp(min(-sdf.z / strength, bevelRadius));
-               glColor = vec4(sdf.xy * s, s, -sdf.z);
-            }
-        )"));
-        heightCalcShader = Shader::NewFragment(R"(
-            #version 330 core
-            layout (location = 0) out vec4 glColor;
-            in vec2 vPosition;
-            uniform sampler2D disGraMap;
-            uniform float bevelRadius, strength;
-            void main() {
-               vec4 d_gra = texture(disGraMap, vPosition);
-               float d = d_gra.z;
-               float h = clamp(log(d) * strength, 0, bevelRadius);
-               float z = sqrt((2 * bevelRadius - h) * h);
-               vec3 n = vec3(d_gra.xy * (bevelRadius - h), d * z);
-               glColor = z > 0.0 ? vec4(normalize(n), z) : vec4(0.0, 0.0, 1.0, 0.0);
-            }
-        )");
+void main() {
+   vec3 sdf = SDF(vUVW, vPrim);
+   float s = exp(min(-sdf.z / strength, bevelRadius));
+   glColor = vec4(sdf.xy * s, s, -sdf.z);
+})");
 
-        glassShader = Shader::NewFragment(R"(
+/*
+ * calculating new gradient:
+ * given H(x, y) = h(g(f(x, y))) where f: R^3 -> R, g(x) = -ln(x) * strength
+ * then grad H = grad (g comp f) * h'(g comp f)
+ *             = (grad f * g'(f)) * h'(g comp f)
+ * if d = f(x, y) and G = grad f(x, y), z = -ln(d) * s, and h'(x) = p(x)/q(x)
+ * then grad H = G * g'(d) * h'(g(d))
+ *             = G * -s/d * h'(-ln(x) * s);
+ *             = (N * p(z)) / (d * q(z))
+ *             (we can set G * s = N because in the render shader we store N instead of G)
+ *       and H = h(-ln(x) * s) = h(z);
+ *
+ *       which means we control p(z), q(z) and h(z) to our needs.
+ */
+
+/*  useful h functions:
+ *  (to find one, first use a simple function, take its derivative and separate the numerator and denom.)
+ *  return value is in (p, q, h) where p/q = h' and h is the actual result
+ *
+ *  - circular:
+ *      vec3 height(float z) {
+ *          z = clamp(z, 0, bevelRadius);
+ *          float H = sqrt((2 * bevelRadius - z) * z);
+ *          return vec3(bevelRadius - H, H, H);
+ *      }
+ *      // pros: simple, cons: non C2 continuous, lighting artefacts may appear
+ *  - squricle:
+ *      vec3 height(float z) {
+ *          z = 1 - clamp(z / bevelRadius, 0, 1);
+ *          float z3 = z * z * z, H4 = 1 - z3 * z, H = sqrt(sqrt(H4));
+ *          return vec3(z3 * H, H4, bevelRadius * H);
+ *      }
+ *      // pros: C2 continuous, cons: slow
+ */
+
+        heightCalcShader = Shader::NewFragment(
+// language=GLSL
+R"(
+#version 330 core
+layout (location = 0) out vec4 glColor;
+in vec2 vPosition;
+uniform sampler2D disGraMap;
+uniform float bevelRadius, strength;
+
+// returns h' in form of p/q, and h itself
+vec3 height(float z) {
+    z = 1 - clamp(z / bevelRadius, 0, 1);
+    float z3 = z * z * z, H4 = 1 - z3 * z, H = sqrt(sqrt(H4));
+    return vec3(z3 * H, H4, bevelRadius * H);
+}
+
+void main() {
+    // !! DO NOT CHANGE THIS PART (expect height(z)) !!
+    vec3 d_gra = texture(disGraMap, vPosition).xyz;
+    float d = d_gra.z, z = log(d) * strength;
+    vec3 h = height(z);
+    vec3 n = vec3(d_gra.xy * h.x, d * h.y);
+    glColor = vec4(normalize(n), h.z);
+}
+)");
+
+        glassShader = Shader::NewFragment(
+// language=GLSL
+R"(
 #version 330 core
 layout (location = 0) out vec4 glColor;
 in vec2 vPosition;
@@ -82,9 +138,9 @@ float lumi(vec3 col) {
 }
 // All components are in the range [0…1], including hue.
 vec3 rgb2hsv(vec3 c) {
-    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+    const vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = c.b < c.g ? vec4(c.bg, K.wz) : vec4(c.gb, K.xy);
+    vec4 q = p.x < c.r ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
 
     float d = q.x - min(q.w, q.y);
     float e = 1.0e-10;
@@ -92,7 +148,7 @@ vec3 rgb2hsv(vec3 c) {
 }
 // All components are in the range [0…1], including hue.
 vec3 hsv2rgb(vec3 c) {
-    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    const vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
@@ -118,28 +174,32 @@ void main() {
 
     vec3 result = texture(bgGlass, hit.xy / screenSize).xyz;
     float L = -cos(3.1415926 * dot(h.xy, normalize(lightSource.xy)));
-    float lum = lumi(result), light = (0.8 + L) * 0.15;
+    float lum = lumi(result), light = (0.8 + L) * 0.2;
     float glare = (1 + L) * pow(max(0.001, 1 - h.z * h.z), bevelRadius / 3.0f);
-    result *= 0.7 + 0.5 * lum + (0.1 + light) * sqrt(max(0.0001, light) + 0.05) * 1.3 * (4.0 - 2.7 * lum);
+    // result *= 0.7 + 0.5 * lum + (0.1 + light) * sqrt(max(0.0001, light) + 0.05) * 1.3 * (4.0 - 2.7 * lum);
+    result *= 1.04 + light / sqrt(lum + 0.01);
     result += hsv2rgb(rgb2hsv(result) * vec3(1.0, 1.0 + 0.32 * glare - 0.6 * lum, 1.2)) * (0.2 * glare / lum);
     glColor = vec4(result, 1.0);
 })");
 
 #ifndef NDEBUG
-        heightVis = Shader::NewFragment(R"(
-            #version 330 core
-            layout (location = 0) out vec4 glColor;
-            in vec2 vPosition;
-            uniform sampler2D heightmap;
-            uniform float bevelRadius;
-            uniform int showActualHeight;
+        heightVis = Shader::NewFragment(
+// language=GLSL
+R"(
+#version 330 core
+layout (location = 0) out vec4 glColor;
+in vec2 vPosition;
+uniform sampler2D heightmap;
+uniform float bevelRadius;
+uniform int showActualHeight;
 
-            void main() {
-                vec4 h = texture(heightmap, vPosition);
-                glColor = h.w == 0 ? vec4(0.0) : showActualHeight == 1 ? vec4(h.w / bevelRadius) : vec4(h.xyz * 0.5 + 0.5, h.w / bevelRadius);
-            }
-        )");
+void main() {
+    vec4 h = texture(heightmap, vPosition);
+    glColor = h.w == 0 ? vec4(0.0) : showActualHeight == 1 ? vec4(h.w / bevelRadius) : vec4(h.xyz * 0.5 + 0.5, h.w / bevelRadius);
+}
+)");
 #endif
+#pragma endregion
     }
 
     float GlassRenderer::GetPadding() const {
