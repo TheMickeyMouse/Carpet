@@ -42,6 +42,7 @@ namespace Carpet {
         glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
         glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
         glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
+        glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
         glassRenderer.Render();
 
         canvas.Update(gdevice.GetIO().DeltaTime());

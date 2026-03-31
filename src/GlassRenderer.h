@@ -48,6 +48,8 @@ namespace Carpet {
 
         void DrawBox(const fRect2D& rect, float r);
         void DrawCirc(const fv2& center, float r);
+        void DrawSemiCirc(const fv2& center, const fv2& direction, float r);
+        void DrawSegment(const fv2& start, const fv2& end, float r);
 
         void Render();
     };

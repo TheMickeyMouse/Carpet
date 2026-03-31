@@ -142,7 +142,7 @@ namespace Quasi::Math {
         Super& MulCompsAssign(const Super& other)     { return BinaryAssign(other, Operators::MulAssign {}); }
         Super& DivCompsAssign(const Super& other)     { return BinaryAssign(other, Operators::DivAssign {}); }
 
-        Super operator+() const { return *this; }
+        Super operator+() const { return super(); }
         Super operator-() const { return Neg(); }
 
         Super operator+(const Super& other) const { return Add(other); }

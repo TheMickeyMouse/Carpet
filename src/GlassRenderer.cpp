@@ -139,8 +139,8 @@ float lumi(vec3 col) {
 // All components are in the range [0…1], including hue.
 vec3 rgb2hsv(vec3 c) {
     const vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = c.b < c.g ? vec4(c.bg, K.wz) : vec4(c.gb, K.xy);
-    vec4 q = p.x < c.r ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
+    vec4 p = c.g < c.b ? vec4(c.bg, K.wz) : vec4(c.gb, K.xy);
+    vec4 q = c.r < p.x ? vec4(p.xyw, c.r) : vec4(c.r, p.yzx);
 
     float d = q.x - min(q.w, q.y);
     float e = 1.0e-10;
@@ -262,6 +262,35 @@ void main() {
         b.PushV({ { center.x - R, center.y - S }, { -U, -V, r }, CIRCLE });
         b.PushV({ { center.x - R, center.y + S }, { -U, +V, r }, CIRCLE });
         b.TriFan((const u32[]) { 0, 1, 2, 3, 4, 5, 6, 7 });
+    }
+
+    void GlassRenderer::DrawSemiCirc(const fv2& center, const fv2& direction, float r) {
+        auto b = mesh.NewBatch();
+        static constexpr float SHORT_LEN = ROOT_2 - 1.0f;
+        const float U = 1 + padding / r, V = U * SHORT_LEN;
+
+        for (const fv2 z : (const fv2[]) { { 0, U }, { V, U }, { U, V } }) {
+            const fv2 P = direction.ComplexMul(z), Q = direction.ComplexMul({ z.x, -z.y });
+            b.PushV({ center + P * r, { P.x, P.y, r }, CIRCLE });
+            b.PushV({ center + Q * r, { Q.x, Q.y, r }, CIRCLE });
+        }
+        b.TriFan((const u32[]) { 0, 2, 4, 5, 3, 1 });
+    }
+
+    void GlassRenderer::DrawSegment(const fv2& start, const fv2& end, float r) {
+        const float R = 1 + padding / r;
+        fv2 N = (end - start).Norm(), T = N.Perpend(), X = T * (r + padding);
+        T *= R;
+
+        DrawSemiCirc(start, -N, r);
+        DrawSemiCirc(end,    N, r);
+        auto b = mesh.NewBatch();
+        b.PushV({ start + X, ( T).AddZ(r), CIRCLE });
+        b.PushV({ end   + X, ( T+
+            ).AddZ(r), CIRCLE });
+        b.PushV({ end   - X, (-T).AddZ(r), CIRCLE });
+        b.PushV({ start - X, (-T).AddZ(r), CIRCLE });
+        b.Quad(0, 1, 2, 3);
     }
 
     void GlassRenderer::Render() {
