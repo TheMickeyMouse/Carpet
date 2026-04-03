@@ -16,6 +16,8 @@ namespace Carpet {
 
         fv2 pos = {};
         Rotor2D light = Degrees(60.0f);
+        Font font;
+        float r = 100.0f;
     public:
         App();
         bool Run();

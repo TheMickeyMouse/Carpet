@@ -1,6 +1,7 @@
 #include "GlassRenderer.h"
 
 #include "GraphicsDevice.h"
+#include "Fonts/Font.h"
 
 namespace Carpet {
     GlassRenderer::GlassRenderer(GraphicsDevice& gd)
@@ -41,24 +42,35 @@ layout (location = 0) out vec4 glColor;
 in vec3 vUVW;
 flat in int vPrim;
 uniform float strength, bevelRadius;
+uniform sampler2D fontSDF;
 
 // returns gradient + distance
 vec3 sdfCirc(vec2 p, float r) {
-   float l = length(p);
-   return vec3(p / l, (l - 1.0) * r);
+    float l = length(p);
+    return vec3(p / l, (l - 1.0) * r);
+}
+vec3 sdfTex(vec2 coords, float r) {
+    float h = texture(fontSDF, coords).r;
+    // smoother version:
+    // vec2 dx = dFdx(coords), dy = dFdy(coords);
+    // vec2 grad = vec2(texture(fontSDF, coords - dx).r - texture(fontSDF, coords + dx).r,
+    //                  texture(fontSDF, coords - dy).r - texture(fontSDF, coords + dy).r);
+    vec2 grad = -vec2(dFdx(h), dFdy(h));
+    return vec3(dot(grad, grad) == 0.0 ? vec2(0) : normalize(grad), (0.4 - h) * r);
 }
 vec3 SDF(vec3 uvw, int prim) {
-   switch (prim) {
-       case 0: return sdfCirc(uvw.xy, uvw.z);
-       case 1: return vec3(0, 0, uvw.x);
-       default: return vec3(0);
-   }
+    switch (prim) {
+        case 0: return sdfCirc(uvw.xy, uvw.z);
+        case 1: return vec3(0, 0, uvw.x);
+        case 2: return sdfTex(uvw.xy, uvw.z);
+        default: return vec3(0);
+    }
 }
 
 void main() {
-   vec3 sdf = SDF(vUVW, vPrim);
-   float s = exp(min(-sdf.z / strength, bevelRadius));
-   glColor = vec4(sdf.xy * s, s, -sdf.z);
+    vec3 sdf = SDF(vUVW, vPrim);
+    float s = exp(min(-sdf.z / strength, bevelRadius));
+    glColor = vec4(sdf.xy * s, s, -sdf.z);
 })");
 
 /*
@@ -286,11 +298,51 @@ void main() {
         DrawSemiCirc(end,    N, r);
         auto b = mesh.NewBatch();
         b.PushV({ start + X, ( T).AddZ(r), CIRCLE });
-        b.PushV({ end   + X, ( T+
-            ).AddZ(r), CIRCLE });
+        b.PushV({ end   + X, ( T).AddZ(r), CIRCLE });
         b.PushV({ end   - X, (-T).AddZ(r), CIRCLE });
         b.PushV({ start - X, (-T).AddZ(r), CIRCLE });
         b.Quad(0, 1, 2, 3);
+    }
+
+    void GlassRenderer::DrawText(const Font& font, Str text, const fv2& pos, float size, float r) {
+        const float pointScale = size / (float)font.FontSize();
+        const float relativeFontSize = pointScale * 64.0f;
+        const float w = font.CalcTextWidth(text) * relativeFontSize;
+
+        const Texture2D& fontAtlas = font.GetTexture();
+        auto batch = mesh.NewBatch();
+
+        // from freetype
+        static constexpr float FONT_DEFAULT_SDF_SPREAD = 8.0f;
+        const float R = 2 * FONT_DEFAULT_SDF_SPREAD * relativeFontSize;
+
+        fv2 pen = pos - fv2 { w / 2.0f, (float)font.GetMetric().descend * pointScale };
+        for (const char c : text) {
+            if (Chr::IsWhitespace(c)) {
+                pen.x += font.GetGlyphRect(' ').advance.x * relativeFontSize;
+                continue;
+            }
+            const Glyph& glyph = font.GetGlyphRect(c);
+            const fv2 rsize  = glyph.rect.Size() * (fv2)fontAtlas.Size(); // real-scale size of the quad
+            const fRect2D uv = glyph.rect;
+            const fv2 start = (fv2)glyph.offset * relativeFontSize + pen,
+                      dim   = rsize * relativeFontSize;
+
+            batch.PushV({ start,                      uv.BottomLeft() .AddZ(R), SDF });
+            batch.PushV({ start + fv2(dim.x, 0),      uv.BottomRight().AddZ(R), SDF });
+            batch.PushV({ start + fv2(dim.x, -dim.y), uv.TopRight()   .AddZ(R), SDF });
+            batch.PushV({ start + fv2(0,     -dim.y), uv.TopLeft()    .AddZ(R), SDF });
+            batch.Quad(0, 1, 2, 3);
+            batch.Reload();
+
+            pen.x += (float)glyph.advance.x * relativeFontSize;
+        }
+    }
+
+    void GlassRenderer::BindFont(const Font& font) {
+        static constexpr int SDF_ACTIVATE_ID = 8;
+        render->shader.Bind();
+        render->shader.SetUniformTex("fontSDF", font.GetTexture(), SDF_ACTIVATE_ID);
     }
 
     void GlassRenderer::Render() {

@@ -2,6 +2,7 @@
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
+#include "freetype/ftmodapi.h"
 
 #include "GLs/GLDebug.h"
 
@@ -11,11 +12,12 @@ namespace Quasi::Graphics {
     }
 
     Font Font::New(FT_FaceRec_* fHand, int fontSize) {
-        fontSize *= 64;
-        Font f = { fHand, fontSize };
+        Font f = { fHand, fontSize * 64 };
 
-        const u32 dpi = FontDevice::DPI();
-        const int error = FT_Set_Char_Size(fHand, fontSize, fontSize, dpi, dpi);
+        // const u32 dpi = FontDevice::DPI();
+        // int error = FT_Set_Char_Size(fHand, 0, fontSize, dpi, dpi);
+        // GLLogger().Assert(!error, "Font Char size set with err code {}", error);
+        int error = FT_Set_Pixel_Sizes(fHand, 0, fontSize);
         GLLogger().Assert(!error, "Font Char size set with err code {}", error);
 
         f.RenderBitmap();
@@ -48,7 +50,7 @@ namespace Quasi::Graphics {
 
         Texture2D::SetPixelStore(PixelStoreParam::UNPACK_ALIGNMENT, 1);
         atlas = Texture2D::New(nullptr, { x, y },
-            { .format = TextureFormat::RED, .internalformat = TextureIFormat::RGBA_8 }
+            { .format = TextureFormat::RED, .internalformat = TextureIFormat::R_8 }
         ); // create blank texture
         atlas.Bind(); // set this texture to the active one
         glyphs.Resize(NUM_GLYPHS); // amt of glyphs

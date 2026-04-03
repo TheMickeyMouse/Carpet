@@ -6,11 +6,16 @@
 #include "GLs/RenderBuffer.h"
 #include "GLs/Texture.h"
 
+namespace Quasi::Graphics {
+    class Font;
+}
+
 namespace Carpet {
     class GlassRenderer {
-        enum SDFType { CIRCLE, FLAT };
-        // circle: uv is interpreted as xy + r, sdf = (length(UV.xy) - 1) * UV.z
-        // box:    uv is interpreted as r,      sdf = r
+        enum SDFType { CIRCLE, FLAT, SDF };
+        // circle: uvw stores xy + r,             sdf = (length(UV.xy) - 1) * UV.z
+        // box:    uvw stores r,                  sdf = r
+        // sdf:    uvw stores xy + r + thickness, sdf = texture(SDF, xy) - 1
         struct Vtx {
             fv2 Position;
             fv3 UVW;
@@ -50,6 +55,8 @@ namespace Carpet {
         void DrawCirc(const fv2& center, float r);
         void DrawSemiCirc(const fv2& center, const fv2& direction, float r);
         void DrawSegment(const fv2& start, const fv2& end, float r);
+        void DrawText(const Font& font, Str text, const fv2& pos, float size, float r);
+        void BindFont(const Font& font);
 
         void Render();
     };
