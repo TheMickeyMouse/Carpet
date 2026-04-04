@@ -2,9 +2,9 @@
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
-#include "freetype/ftmodapi.h"
 
 #include "GLs/GLDebug.h"
+#include "Utils/Algorithm.h"
 
 namespace Quasi::Graphics {
     void FontDeleter::operator()(FT_FaceRec_* ptr) const {
@@ -27,13 +27,14 @@ namespace Quasi::Graphics {
 
     void Font::RenderBitmap() {
         using namespace Math;
-        int pen = 0; // x value of pen
 
-        constexpr int loadSDF = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF); // used for sdf rendering
-        constexpr int sdfExtrude = 16;
+        constexpr int LOAD_SDF = FT_LOAD_RENDER | FT_LOAD_TARGET_(FT_RENDER_MODE_SDF); // used for sdf rendering
+        constexpr int SDF_EXTRUDE = 8;
 
         const FT_GlyphSlot glyphHandle = faceHandle->glyph;
-        int x = 0, y = 0;
+
+        struct GlyphInfo { iv2 size; char c; };
+        GlyphInfo glyphInfo[NUM_GLYPHS];
         for (char charCode = 32; charCode < 127; ++charCode) { // loop through each character
             // new method: SDFs extrude 8 pixels in all directions, so you can load normally and then add 16
             // (no need to load twice!)
@@ -42,16 +43,47 @@ namespace Quasi::Graphics {
                 continue;  /* ignore errors */
             }
 
-            y = std::max(y, (int)glyphHandle->bitmap.rows); // y is guaranteed to fit the sdf
-            x += (int)glyphHandle->bitmap.width; // packs sdfs together on the x axis
+            glyphInfo[charCode - 32] = {
+                {
+                    (int)glyphHandle->bitmap.width + SDF_EXTRUDE,
+                    (int)glyphHandle->bitmap.rows + SDF_EXTRUDE
+                }, charCode
+            };
         }
-        y += sdfExtrude;
-        x += (NUM_GLYPHS - 1 /* space */) * sdfExtrude;
+
+        Span(glyphInfo).SortByKey([] (const GlyphInfo& info) { return info.size.y; });
+
+        // packing algorithm
+        int minWidth = 0;
+        usize area = 0;
+        for (const auto [size, _] : glyphInfo) {
+            minWidth = std::max(minWidth, size.x);
+            area += size.x * size.y;
+        }
+        const int width = std::max((int)std::sqrt(area), minWidth);
+
+        static constexpr int PADDING = 1;
+        glyphs.ResizeDefault(NUM_GLYPHS);
+        iv2 pen = 0;
+        // proceed to fit the next glyphs, making sure to not exceed the first row
+        for (usize i = 0; i < NUM_GLYPHS; ++i) {
+            const auto& g = glyphInfo[i];
+            if (pen.x + g.size.x > width) {
+                pen.x = 0;
+                // heights are sorted in order, so we can safely add the previous
+                pen.y += glyphInfo[i - 1].size.y + PADDING;
+            }
+            // default value for now; will fix in later stages
+            glyphs[g.c - 32] = { fRect2D::FromSize((fv2)pen, (fv2)g.size), 0, 0 };
+            pen.x += g.size.x + PADDING;
+        }
+        pen.y += glyphInfo[NUM_GLYPHS - 1].size.y;
 
         Texture2D::SetPixelStore(PixelStoreParam::UNPACK_ALIGNMENT, 1);
-        atlas = Texture2D::New(nullptr, { x, y },
+        atlas = Texture2D::New(nullptr, { width, pen.y },
             { .format = TextureFormat::RED, .internalformat = TextureIFormat::R_8 }
         ); // create blank texture
+        atlas.Clear(0);
         atlas.Bind(); // set this texture to the active one
         glyphs.Resize(NUM_GLYPHS); // amt of glyphs
 
@@ -61,22 +93,20 @@ namespace Quasi::Graphics {
             (int)faceHandle->size->metrics.descender
         };
 
-        const fv2 invTextureSize = { 1 / (float)x, 1 / (float)y };
+        const fv2 invTextureSize = 1.0f / (fv2)atlas.size;
         for (char charCode = 32; charCode < 127; ++charCode) { // loop through again, this time drawing textures
-            if (const int error = FT_Load_Char(faceHandle.DataMut(), charCode, loadSDF)) { // loads again
+            if (const int error = FT_Load_Char(faceHandle.DataMut(), charCode, LOAD_SDF)) { // loads again
                 GLLogger().QError$("Loading char with err code {}", error);
                 continue;
             }
 
-            const iv2 size = { (int)glyphHandle->bitmap.width, (int)glyphHandle->bitmap.rows }; // construct size in pixels of the texture
-            atlas.SetSubTexture(glyphHandle->bitmap.buffer, iRect2D::FromSize({ pen, 0 }, size), { .format = TextureFormat::RED }); // draw the sub texture
-
             Glyph& glyph = glyphs[charCode - 32]; // write rendering memory
-            glyph.rect = fRect2D::FromSize({ (float)pen, (float)0 }, (fv2)size) * invTextureSize; // rect of texture in atlas
+            const iv2 size = { (int)glyphHandle->bitmap.width, (int)glyphHandle->bitmap.rows }; // construct size in pixels of the texture
+            atlas.SetSubTexture(glyphHandle->bitmap.buffer, iRect2D::FromSize((iv2)glyph.rect.min, size), { .format = TextureFormat::RED }); // draw the sub texture
+
+            glyph.rect = glyph.rect * invTextureSize; // resize
             glyph.advance = { (float)glyphHandle->advance.x / 64.0f, (float)glyphHandle->advance.y / 64.0f }; // pen move
             glyph.offset  = { glyphHandle->bitmap_left, glyphHandle->bitmap_top }; // offset from pen
-
-            pen += (int)size.x; // moves pen
         }
         Texture2D::SetPixelStore(PixelStoreParam::UNPACK_ALIGNMENT, 4);
     }

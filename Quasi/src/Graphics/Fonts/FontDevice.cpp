@@ -3,6 +3,7 @@
 #include "GLs/GLDebug.h"
 
 #include "ft2build.h"
+#include "freetype/ftmodapi.h"
 
 #include FT_FREETYPE_H
 
@@ -15,6 +16,9 @@ namespace Quasi::Graphics {
             GLLogger().QError$("Freetype Init failed with err code {}", error);
             return;
         }
+
+        FT_Property_Set(libHandle, "sdf", "spread", &SPREAD);
+
         Instance = *this;
     }
 

@@ -94,6 +94,7 @@ namespace Quasi::Graphics {
         void SetParam(TextureParamName paramName, const int*   value) const { TextureBase::SetParam(Target, paramName, value); }
         void SetParam(TextureParamName paramName, const float* value) const { TextureBase::SetParam(Target, paramName, value); }
 
+        void Clear(const Math::fColor& color, int level = 0);
         void SetSubTexture(const byte* data, const Math::Rect<int, DIM>& rect, const TextureLoadParams& params = {}, int level = 0);
         void SetSubTexture(ImageView image, const Math::iv2& pos, const TextureLoadParams& params = {}, int level = 0) requires (DIM == 2);
         void SetTexture(const byte* data, const Math::Vector<int, DIM>& dim, const TextureLoadParams& params = {}, int level = 0);

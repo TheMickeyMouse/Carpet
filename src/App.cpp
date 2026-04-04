@@ -16,13 +16,13 @@ namespace Carpet {
 #endif
         Instance = *this;
 
-        glassRenderer.background      = Texture2D::LoadPNG("../bg_night_plain.png");
-        glassRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_night_glass.png");
+        glassRenderer.background      = Texture2D::LoadPNG("../bg_day_plain.png");
+        glassRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_day_glass.png");
         glassRenderer.bevelRadius = 25;
         glassRenderer.height = 80.0f;
         glassRenderer.lightDirection = fv3 { 4, 7, 10 };
 
-        font = Font::LoadFile("C:/Windows/Fonts/segoeui.ttf", 64);
+        font = Font::LoadFile("C:/Users/User/AppData/Local/Microsoft/Windows/Fonts/JetbrainsMono-Medium.ttf", 64);
         glassRenderer.BindFont(font);
     }
 
@@ -48,7 +48,7 @@ namespace Carpet {
         glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
 
         Debug::DateTime time = Debug::Timer::Now();
-        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 700 }, 240, 0);
+        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 700 }, 240, r);
 
         glassRenderer.Render();
 
@@ -66,7 +66,7 @@ namespace Carpet {
         ImGui::EditRotation2D("Light", light);
         glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-        ImGui::EditScalar("R", r);
+        ImGui::EditScalar("R", r, 0.2, fRange { 0, 20.0f });
 
         // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 

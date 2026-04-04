@@ -27,6 +27,8 @@ namespace Quasi::Graphics {
         static FT_LibraryRec_* Library();
         static u32 DPI();
 
+        static constexpr u32 SPREAD = 4;
+
         friend Font;
     };
 }

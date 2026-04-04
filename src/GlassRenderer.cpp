@@ -6,7 +6,7 @@
 namespace Carpet {
     GlassRenderer::GlassRenderer(GraphicsDevice& gd)
         : canvasSize(gd.GetWindowSize()), render(gd.CreateNewRender<Vtx>()), padding(GetPadding()) {
-        // stores gradient (X,656 Y), exp distance
+        // stores gradient (X, Y), exp distance
         //        in        R  G   B
         distanceMap = Texture2D::New(nullptr, canvasSize, {
             .internalformat = TextureIFormat::RGB_32F, .type = TID::FLOAT,
@@ -23,15 +23,16 @@ namespace Carpet {
 R"(
 #version 330 core
 layout (location = 0) in vec2 position;
-layout (location = 1) in vec3 uvw;
-layout (location = 2) in int prim;
-out vec3 vUVW;
+layout (location = 1) in vec2 uv;
+layout (location = 2) in vec2 rs;
+layout (location = 3) in int prim;
+out vec4 vUVs;
 flat out int vPrim;
 uniform vec2 screenSize;
 
 void main() {
    gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);
-   vUVW = uvw;
+   vUVs = vec4(uv, rs);
    vPrim = prim;
 }
 )",
@@ -39,36 +40,36 @@ void main() {
 R"(
 #version 330 core
 layout (location = 0) out vec4 glColor;
-in vec3 vUVW;
+in vec4 vUVs;
 flat in int vPrim;
 uniform float strength, bevelRadius;
 uniform sampler2D fontSDF;
 
 // returns gradient + distance
-vec3 sdfCirc(vec2 p, float r) {
+vec3 sdfCirc(vec2 p, float r, float t) {
     float l = length(p);
-    return vec3(p / l, (l - 1.0) * r);
+    return vec3(p / l, l * r - t);
 }
-vec3 sdfTex(vec2 coords, float r) {
-    float h = texture(fontSDF, coords).r;
+vec3 sdfTex(vec2 coords, float r, float t) {
+    float h = (max(-texture(fontSDF, coords).r + 0.5, -t) - t) * r;
     // smoother version:
     // vec2 dx = dFdx(coords), dy = dFdy(coords);
     // vec2 grad = vec2(texture(fontSDF, coords - dx).r - texture(fontSDF, coords + dx).r,
     //                  texture(fontSDF, coords - dy).r - texture(fontSDF, coords + dy).r);
-    vec2 grad = -vec2(dFdx(h), dFdy(h));
-    return vec3(dot(grad, grad) == 0.0 ? vec2(0) : normalize(grad), (0.4 - h) * r);
+    vec2 grad = vec2(dFdx(h), dFdy(h));
+    return vec3(grad, h);
 }
-vec3 SDF(vec3 uvw, int prim) {
+vec3 SDF(vec4 uv, int prim) {
     switch (prim) {
-        case 0: return sdfCirc(uvw.xy, uvw.z);
-        case 1: return vec3(0, 0, uvw.x);
-        case 2: return sdfTex(uvw.xy, uvw.z);
+        case 0: return sdfCirc(2 * uv.xy - 1, uv.z, uv.w);
+        case 1: return vec3(0, 0, uv.z);
+        case 2: return sdfTex(uv.xy, uv.z, uv.w);
         default: return vec3(0);
     }
 }
 
 void main() {
-    vec3 sdf = SDF(vUVW, vPrim);
+    vec3 sdf = SDF(vUVs, vPrim);
     float s = exp(min(-sdf.z / strength, bevelRadius));
     glColor = vec4(sdf.xy * s, s, -sdf.z);
 })");
@@ -232,14 +233,13 @@ void main() {
     void GlassRenderer::DrawBox(const fRect2D& rect, float r) {
         auto b = mesh.NewBatch();
 
-        const float p = padding / r;
         const float xs[4] = { rect.max.x + padding, rect.max.x - r, rect.min.x + r, rect.min.x - padding },
                     ys[4] = { rect.max.y + padding, rect.max.y - r, rect.min.y + r, rect.min.y - padding };
-        const float UVs[4] = { 1 + p, 0, 0, -1 - p };
+        static constexpr float UVs[4] = { 1, 0, 0, -1 };
 
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                b.PushV({ { xs[i], ys[j] }, { UVs[i], UVs[j], r }, CIRCLE });
+                b.PushV(Vtx::Circ({ xs[i], ys[j] }, { UVs[i], UVs[j] }, r + padding, r));
             }
         }
         for (const int k : { 0, 1, 2, 4, /* skip middle 5, */ 6, 8, 9, 10 }) {
@@ -247,10 +247,10 @@ void main() {
         }
 
         // centerpiece
-        b.PushV({ { xs[1], ys[1] }, { -r, 0, 0 }, FLAT }); // 16
-        b.PushV({ { xs[1], ys[2] }, { -r, 0, 0 }, FLAT });
-        b.PushV({ { xs[2], ys[2] }, { -r, 0, 0 }, FLAT });
-        b.PushV({ { xs[2], ys[1] }, { -r, 0, 0 }, FLAT });
+        b.PushV(Vtx::Flat({ xs[1], ys[1] }, -r)); // 16
+        b.PushV(Vtx::Flat({ xs[1], ys[2] }, -r));
+        b.PushV(Vtx::Flat({ xs[2], ys[2] }, -r));
+        b.PushV(Vtx::Flat({ xs[2], ys[1] }, -r));
         b.Quad(16, 17, 18, 19);
     }
 
@@ -263,44 +263,42 @@ void main() {
         // hexagon:  mesh area = 2√3 = 3.4641..., waste =  9.31%;
         // octagon:     area = 8√2-8 = 3.3137..., waste =  5.19%;
         auto b = mesh.NewBatch();
-        const float R = r + padding, S = R * (ROOT_2 - 1.0f),
-                    U = R / r, V = U * (ROOT_2 - 1.0f);
-        b.PushV({ { center.x - S, center.y + R }, { -V, +U, r }, CIRCLE });
-        b.PushV({ { center.x + S, center.y + R }, { +V, +U, r }, CIRCLE });
-        b.PushV({ { center.x + R, center.y + S }, { +U, +V, r }, CIRCLE });
-        b.PushV({ { center.x + R, center.y - S }, { +U, -V, r }, CIRCLE });
-        b.PushV({ { center.x + S, center.y - R }, { +V, -U, r }, CIRCLE });
-        b.PushV({ { center.x - S, center.y - R }, { -V, -U, r }, CIRCLE });
-        b.PushV({ { center.x - R, center.y - S }, { -U, -V, r }, CIRCLE });
-        b.PushV({ { center.x - R, center.y + S }, { -U, +V, r }, CIRCLE });
+        static constexpr float U = (ROOT_2 - 1.0f);
+        const float R = r + padding, S = R * U;
+        b.PushV(Vtx::Circ({ center.x - S, center.y + R }, { -U, +1 }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x + S, center.y + R }, { +U, +1 }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x + R, center.y + S }, { +1, +U }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x + R, center.y - S }, { +1, -U }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x + S, center.y - R }, { +U, -1 }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x - S, center.y - R }, { -U, -1 }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x - R, center.y - S }, { -1, -U }, r + padding, r));
+        b.PushV(Vtx::Circ({ center.x - R, center.y + S }, { -1, +U }, r + padding, r));
         b.TriFan((const u32[]) { 0, 1, 2, 3, 4, 5, 6, 7 });
     }
 
     void GlassRenderer::DrawSemiCirc(const fv2& center, const fv2& direction, float r) {
         auto b = mesh.NewBatch();
-        static constexpr float SHORT_LEN = ROOT_2 - 1.0f;
-        const float U = 1 + padding / r, V = U * SHORT_LEN;
+        static constexpr float U = ROOT_2 - 1.0f;
 
-        for (const fv2 z : (const fv2[]) { { 0, U }, { V, U }, { U, V } }) {
+        const float R = r + padding;
+        for (const fv2 z : (const fv2[]) { { 0, 1 }, { U, 1 }, { 1, U } }) {
             const fv2 P = direction.ComplexMul(z), Q = direction.ComplexMul({ z.x, -z.y });
-            b.PushV({ center + P * r, { P.x, P.y, r }, CIRCLE });
-            b.PushV({ center + Q * r, { Q.x, Q.y, r }, CIRCLE });
+            b.PushV(Vtx::Circ(center + P * R, P, R, r));
+            b.PushV(Vtx::Circ(center + Q * R, Q, R, r));
         }
         b.TriFan((const u32[]) { 0, 2, 4, 5, 3, 1 });
     }
 
     void GlassRenderer::DrawSegment(const fv2& start, const fv2& end, float r) {
-        const float R = 1 + padding / r;
         fv2 N = (end - start).Norm(), T = N.Perpend(), X = T * (r + padding);
-        T *= R;
 
         DrawSemiCirc(start, -N, r);
         DrawSemiCirc(end,    N, r);
         auto b = mesh.NewBatch();
-        b.PushV({ start + X, ( T).AddZ(r), CIRCLE });
-        b.PushV({ end   + X, ( T).AddZ(r), CIRCLE });
-        b.PushV({ end   - X, (-T).AddZ(r), CIRCLE });
-        b.PushV({ start - X, (-T).AddZ(r), CIRCLE });
+        b.PushV(Vtx::Circ(start + X,  T, r + padding, r));
+        b.PushV(Vtx::Circ(end   + X,  T, r + padding, r));
+        b.PushV(Vtx::Circ(end   - X, -T, r + padding, r));
+        b.PushV(Vtx::Circ(start - X, -T, r + padding, r));
         b.Quad(0, 1, 2, 3);
     }
 
@@ -313,8 +311,8 @@ void main() {
         auto batch = mesh.NewBatch();
 
         // from freetype
-        static constexpr float FONT_DEFAULT_SDF_SPREAD = 8.0f;
-        const float R = 2 * FONT_DEFAULT_SDF_SPREAD * relativeFontSize;
+        const float R = 2 * (FontDevice::SPREAD) * relativeFontSize;
+        const float thickness = r * 0.5f / R;
 
         fv2 pen = pos - fv2 { w / 2.0f, (float)font.GetMetric().descend * pointScale };
         for (const char c : text) {
@@ -328,10 +326,10 @@ void main() {
             const fv2 start = (fv2)glyph.offset * relativeFontSize + pen,
                       dim   = rsize * relativeFontSize;
 
-            batch.PushV({ start,                      uv.BottomLeft() .AddZ(R), SDF });
-            batch.PushV({ start + fv2(dim.x, 0),      uv.BottomRight().AddZ(R), SDF });
-            batch.PushV({ start + fv2(dim.x, -dim.y), uv.TopRight()   .AddZ(R), SDF });
-            batch.PushV({ start + fv2(0,     -dim.y), uv.TopLeft()    .AddZ(R), SDF });
+            batch.PushV(Vtx::TexSDF(start,                      uv.BottomLeft(),  R, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, 0),      uv.BottomRight(), R, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, -dim.y), uv.TopRight(),    R, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(0,     -dim.y), uv.TopLeft(),     R, thickness));
             batch.Quad(0, 1, 2, 3);
             batch.Reload();
 

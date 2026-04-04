@@ -153,6 +153,10 @@ namespace Quasi::Graphics {
         QGLCall$(GL::BindImageTexture(slot, rendererID, mipmapLevel, 0, 0, (int)access, (int)format));
     }
 
+    template <TextureTarget Target> void TextureObject<Target>::Clear(const Math::fColor& color, int level) {
+        GL::ClearTexImage(rendererID, level, (int)TextureFormat::RGBA, TID::FLOAT, color.Data());
+    }
+
     template <TextureTarget Target>
     void TextureObject<Target>::SetSubTexture(const byte* data, const Math::Rect<int, DIM>& rect, const TextureLoadParams& params, int level) {
         if constexpr (DIM == 1) {

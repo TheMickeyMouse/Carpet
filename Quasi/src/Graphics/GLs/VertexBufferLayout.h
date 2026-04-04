@@ -5,6 +5,7 @@
 #include "Utils/Math/Color.h"
 #include "Utils/Vec.h"
 #include "Utils/Type.h"
+#include "Utils/Math/Packed.h"
 
 namespace Quasi::Graphics {
     struct VertexBufferComponent {
@@ -18,6 +19,8 @@ namespace Quasi::Graphics {
             if constexpr (requires (T x) { { Math::Vector { x } } -> SameAs<T>; })
                 return { TID::Of<typename T::Elm>(), T::Dim, sizeof(T) };
             if constexpr (requires (T x) { { Math::IColor { x } } -> SameAs<T>; })
+                return { TID::Of<typename T::Elm>(), T::Dim, sizeof(T), true, false };
+            if constexpr (Extends<T, Math::IPackedVector>)
                 return { TID::Of<typename T::Elm>(), T::Dim, sizeof(T), true, false };
             return {};
         }

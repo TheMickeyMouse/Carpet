@@ -13,14 +13,25 @@ namespace Quasi::Graphics {
 namespace Carpet {
     class GlassRenderer {
         enum SDFType { CIRCLE, FLAT, SDF };
-        // circle: uvw stores xy + r,             sdf = (length(UV.xy) - 1) * UV.z
-        // box:    uvw stores r,                  sdf = r
-        // sdf:    uvw stores xy + r + thickness, sdf = texture(SDF, xy) - 1
+        // circle: UV;RS stores xy [-1, 1]; r+t, sdf = length(2 * xy - 1) * r - t
+        // box:    UV;RS stores 0;  r,           sdf = r
+        // sdf:    UV;RS stores xy [ 0, 1]; r+t, sdf = texture(SDF, xy) * r - t
         struct Vtx {
             fv2 Position;
-            fv3 UVW;
+            sfv2 UV;
+            fv2 RS;
             u32 Prim = 0;
-            QuasiDefineVertex$(Vtx, 2D, (Position, Position)(UVW)(Prim));
+            QuasiDefineVertex$(Vtx, 2D, (Position, Position)(UV)(RS)(Prim));
+
+            static Vtx Circ(fv2 pos, fv2 uv, float rPadded, float r) {
+                return { pos, 0.5 * uv + 0.5, { rPadded, r }, CIRCLE };
+            }
+            static Vtx Flat(fv2 pos, float r) {
+                return { pos, { 0, 0 }, { r, 0 }, FLAT };
+            }
+            static Vtx TexSDF(fv2 pos, fv2 uv, float r, float thickness) {
+                return { pos, uv,             { r, thickness }, SDF };
+            }
         };
 
         FrameBuffer fbo;
