@@ -48,9 +48,12 @@ namespace Carpet {
         glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
 
         Debug::DateTime time = Debug::Timer::Now();
-        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 700 }, 240, r);
+        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), fv2 { 960, 700 }, 240, 10.0f);
 
         glassRenderer.Render();
+
+        canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
+        canvas.DrawRect({ { 200, 300 }, { 600, 600 } });
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();
@@ -66,7 +69,7 @@ namespace Carpet {
         ImGui::EditRotation2D("Light", light);
         glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-        ImGui::EditScalar("R", r, 0.2, fRange { 0, 20.0f });
+        ImGui::EditColor("Tint", glassRenderer.glassTint);
 
         // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 

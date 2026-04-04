@@ -338,7 +338,7 @@ namespace Quasi::Graphics {
         GLLogger().QInfo$("{}", (const char*)GL::GetString(GL::VERSION));
 
         Render::EnableBlend();
-        Render::UseBlendFunc(BlendFactor::SRC_ALPHA, BlendFactor::INVERT_SRC_ALPHA);
+        Render::UseBlendFunc(BlendFactor::ONE, BlendFactor::INVERT_SRC_ALPHA);
         // Render::UseBlendConstColor({ 1, 1, 1 });
 
         Render::EnableDepth();

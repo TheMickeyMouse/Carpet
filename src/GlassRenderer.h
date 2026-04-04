@@ -15,7 +15,7 @@ namespace Carpet {
         enum SDFType { CIRCLE, FLAT, SDF };
         // circle: UV;RS stores xy [-1, 1]; r+t, sdf = length(2 * xy - 1) * r - t
         // box:    UV;RS stores 0;  r,           sdf = r
-        // sdf:    UV;RS stores xy [ 0, 1]; r+t, sdf = texture(SDF, xy) * r - t
+        // sdf:    UV;RS stores xy [ 0, 1]; r+t, sdf = (max(0.5 - texture(SDF, xy), -t) - t) * r
         struct Vtx {
             fv2 Position;
             sfv2 UV;
@@ -53,6 +53,7 @@ namespace Carpet {
         Texture2D background, backgroundGlass;
         float eta = 0.667, height = 60.0f, bevelRadius = 20.0f;
         fv3 lightDirection = { 0.48f, 0.36f, 0.8f };
+        fColor glassTint = { 1.0f, 1.0f, 1.0f, 0.0f };
     public:
         GlassRenderer(GraphicsDevice& gd);
 

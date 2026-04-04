@@ -55,7 +55,7 @@ namespace Quasi::Graphics {
             "uniform mat4 u_projection, u_view;"
             ""
             "void main() {"
-            "    gl_Position = u_projection * u_view * vec4(position, 1.0, 1.0);"
+            "    gl_Position = u_projection * u_view * vec4(position, 0.0, 1.0);"
             "    vColor = color;"
             "    vTexCoord = texCoord;"
             "    vSTUV = stuv;"

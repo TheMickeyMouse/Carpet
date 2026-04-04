@@ -136,15 +136,16 @@ void main() {
 )");
 
         glassShader = Shader::NewFragment(
-// language=GLSL
-R"(
+            // language=GLSL
+            R"(
 #version 330 core
 layout (location = 0) out vec4 glColor;
 in vec2 vPosition;
 uniform sampler2D heightmap, bgPlain, bgGlass;
 uniform vec3 lightSource;
 uniform vec2 screenSize;
-uniform float eta, height, bevelRadius, S;
+uniform float eta, height, bevelRadius;
+uniform vec4 glassTint;
 
 float lumi(vec3 col) {
     return dot(col, vec3(0.2126, 0.7152, 0.0722));
@@ -172,26 +173,37 @@ void main() {
         vec3 result = texture(bgPlain, vPosition).rgb;
 
         float w = texture(heightmap, vPosition + lightSource.xy / screenSize * (bevelRadius / lightSource.z)).w / bevelRadius;
-        const float gamma = 2.2;
-        result = pow(pow(result, vec3(1 / gamma)) - 0.5 * smoothstep(0, 1, 0.4 * w * w), vec3(gamma));
+        result *= 1 - smoothstep(0, 1, 0.4 * w * w) * 0.5;
 
         glColor = vec4(result, 1.0);
         return;
     }
 
     vec3 pos = vec3(vPosition * screenSize, h.w);
-    vec3 dir = refract(vec3(0, 0, -1), h.xyz, eta);
+    pos.xy /= screenSize;
+    pos.z += height;
 
-    float raylen = (pos.z + height) / -dir.z;
-    vec3 hit = pos + raylen * dir;
+    vec3 dirR = refract(vec3(0, 0, -1), h.xyz, eta * 1.15),
+         dirG = refract(vec3(0, 0, -1), h.xyz, eta),
+         dirB = refract(vec3(0, 0, -1), h.xyz, eta * 0.87);
 
-    vec3 result = texture(bgGlass, hit.xy / screenSize).xyz;
+    vec3 result = vec3(
+        texture(bgGlass, pos.xy - dirR.xy / screenSize * (pos.z / dirR.z)).r,
+        texture(bgGlass, pos.xy - dirG.xy / screenSize * (pos.z / dirG.z)).g,
+        texture(bgGlass, pos.xy - dirB.xy / screenSize * (pos.z / dirB.z)).b
+    );
+
+    result = result * mix(vec3(1), glassTint.rgb, glassTint.a);
+
     float L = -cos(3.1415926 * dot(h.xy, normalize(lightSource.xy)));
-    float lum = lumi(result), light = (0.8 + L) * 0.2;
+    float lum = lumi(result), light = (0.8 + L) * 0.2, invlum = 1 / sqrt(lum + 0.01);
     float glare = (1 + L) * pow(max(0.001, 1 - h.z * h.z), bevelRadius / 3.0f);
-    // result *= 0.7 + 0.5 * lum + (0.1 + light) * sqrt(max(0.0001, light) + 0.05) * 1.3 * (4.0 - 2.7 * lum);
-    result *= 1.04 + light / sqrt(lum + 0.01);
-    result += hsv2rgb(rgb2hsv(result) * vec3(1.0, 1.0 + 0.32 * glare - 0.6 * lum, 1.2)) * (0.2 * glare / lum);
+
+    result *= 1.04 + light * invlum;
+    vec3 hsv = rgb2hsv(result);
+    result = hsv2rgb(hsv * vec3(1.0, 1.25, 1.0));
+    result += (0.25 * glare * invlum) * hsv2rgb(vec3(hsv.x, hsv.y * 0.4, hsv.z));
+
     glColor = vec4(result, 1.0);
 })");
 
@@ -401,6 +413,7 @@ void main() {
             { "eta",         eta },
             { "height",      height },
             { "bevelRadius", bevelRadius },
+            { "glassTint",   glassTint }
             // { "S", S }
         });
         // glassShader.SetUniformFloat("maxZ", renderer.bevelSize);
