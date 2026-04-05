@@ -15,6 +15,11 @@ namespace Carpet {
 
         RenderObject<Vtx> render;
         Mesh<Vtx> terrain;
+        fv2 focusPosition = 0.5f;
+    public:
+        float fogFalloff = 0.004;
+        fColor3 fogBlue = { 0.041, 0.114, 0.280 }, fogYellow = { 1.0, 0.935, 0.750 };
+        fv3 lightSource = { 1.2, 0.55, 3.45 }, cameraSource = { 4.379, 3.8, -3.12 };
     public:
         TerrainRenderer(GraphicsDevice& gd);
 

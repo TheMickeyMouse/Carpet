@@ -77,6 +77,12 @@ namespace Carpet {
             glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
             ImGui::EditColor("Tint", glassRenderer.glassTint);
+        } else if (rendererID == TERRAIN) {
+            ImGui::EditScalar("Fog Falloff", terrainRenderer.fogFalloff, 0.03, fRange { 0, 3 });
+            ImGui::EditColor("Fog Blue", terrainRenderer.fogBlue);
+            ImGui::EditColor("Fog Yellow", terrainRenderer.fogYellow);
+            ImGui::EditVector("Light Source", terrainRenderer.lightSource, 0.05);
+            ImGui::EditVector("Camera", terrainRenderer.cameraSource, 0.05);
         }
 
         // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });

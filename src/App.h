@@ -16,7 +16,7 @@ namespace Carpet {
         GlassRenderer glassRenderer;
         TerrainRenderer terrainRenderer;
 
-        enum WhichRenderer { GLASS, TERRAIN } rendererID = GLASS;
+        enum WhichRenderer { GLASS, TERRAIN } rendererID = TERRAIN;
 
         fv2 pos = {};
         Rotor2D light = Degrees(60.0f);
