@@ -1,6 +1,7 @@
 #pragma once
 #include "GraphicsDevice.h"
 #include "GlassRenderer.h"
+#include "TerrainRenderer.h"
 #include "GUI/Canvas.h"
 
 using namespace Quasi;
@@ -13,6 +14,9 @@ namespace Carpet {
         GraphicsDevice gdevice;
         Canvas canvas;
         GlassRenderer glassRenderer;
+        TerrainRenderer terrainRenderer;
+
+        enum WhichRenderer { GLASS, TERRAIN } rendererID = GLASS;
 
         fv2 pos = {};
         Rotor2D light = Degrees(60.0f);

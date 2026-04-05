@@ -10,7 +10,7 @@ namespace Carpet {
             .resizable = false, .decorated = false, .initalFocused = false,
             .floating = false,
             .transparent = true, .focusOnShow = false
-        })), canvas(gdevice), glassRenderer(gdevice) {
+        })), canvas(gdevice), glassRenderer(gdevice), terrainRenderer(gdevice) {
 #ifdef CARPET_SET_BACKGROUND_BY_DEFAULT
         Sys::PrepareBgWindow(gdevice);
 #endif
@@ -42,34 +42,42 @@ namespace Carpet {
             return false;
         }
 
-        glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
-        glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
-        glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
-        glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
+        ImGui::Combo("Renderer", (int*)&rendererID, "Glass\0Terrain\0\0");
 
-        Debug::DateTime time = Debug::Timer::Now();
-        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), fv2 { 960, 700 }, 240, 10.0f);
+        if (rendererID == GLASS) {
+            glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
+            glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
+            glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
+            glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
 
-        glassRenderer.Render();
+            Debug::DateTime time = Debug::Timer::Now();
+            glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), fv2 { 960, 700 }, 240, 10.0f);
 
-        canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
-        canvas.DrawRect({ { 200, 300 }, { 600, 600 } });
+            glassRenderer.Render();
+        } else if (rendererID == TERRAIN) {
+            terrainRenderer.Render(gdevice);
+        }
+
+        // canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
+        // canvas.DrawRect({ { 200, 300 }, { 600, 600 } });
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();
 
-        float s = glassRenderer.GetSmoothingStrength();
-        ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
-        if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
+        if (rendererID == GLASS) {
+            float s = glassRenderer.GetSmoothingStrength();
+            ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
+            if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
 
-        glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
-        ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
+            glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
+            ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
-        ImGui::EditVector("Pos", pos);
-        ImGui::EditRotation2D("Light", light);
-        glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
+            ImGui::EditVector("Pos", pos);
+            ImGui::EditRotation2D("Light", light);
+            glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-        ImGui::EditColor("Tint", glassRenderer.glassTint);
+            ImGui::EditColor("Tint", glassRenderer.glassTint);
+        }
 
         // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 
