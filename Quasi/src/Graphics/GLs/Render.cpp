@@ -119,6 +119,10 @@ namespace Quasi::Graphics::Render {
         QGLCall$(GL::DrawBuffer((int)mode));
     }
 
+    void SetViewport(const Math::iRect2D& viewport) {
+        GL::Viewport(viewport.min.x, viewport.min.y, viewport.Size().x, viewport.Size().y);
+    }
+
     void MemoryBarrier(int barrierBits) {
         QGLCall$(GL::MemoryBarrier(barrierBits));
     }

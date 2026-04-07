@@ -14,6 +14,7 @@ add_executable(Carpet main.cpp
     src/GlassRenderer.cpp
     src/GlassRenderer.h
         src/TerrainRenderer.h
-        src/TerrainRenderer.cpp)
+        src/TerrainRenderer.cpp
+        src/res/Shaders.h)
 target_link_directories(Carpet PUBLIC src)
 target_link_libraries(Carpet PUBLIC Quasi)

@@ -41,6 +41,7 @@ namespace Carpet {
         RenderObject<Vtx> render;
         Mesh<Vtx> mesh;
         Shader heightCalcShader, glassShader;
+        Shader blurXShader, blurYShader;
 
 #ifndef NDEBUG
         Shader heightVis;
@@ -54,6 +55,9 @@ namespace Carpet {
         float eta = 0.667, height = 60.0f, bevelRadius = 20.0f;
         fv3 lightDirection = { 0.48f, 0.36f, 0.8f };
         fColor glassTint = { 1.0f, 1.0f, 1.0f, 0.0f };
+
+        float dropShadowRadius = 8.0f, dropShadowPow = 0.1f;
+        float mainShadowDist = 30.0f, mainShadowPow = 0.5f;
     public:
         GlassRenderer(GraphicsDevice& gd);
 
@@ -71,5 +75,6 @@ namespace Carpet {
         void BindFont(const Font& font);
 
         void Render();
+        void ApplyGlassFilter();
     };
 } // Carpet

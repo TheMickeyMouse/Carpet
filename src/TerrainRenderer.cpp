@@ -16,7 +16,7 @@ out vec4 vColor;
 out float zLayer;
 
 void main() {
-    gl_Position = vec4(position.xy, 0.0, 1.0);
+    gl_Position = vec4(position.xy, position.z / 20.0f, 1.0);
     zLayer = position.z;
     vUV = position.xy * 0.5 + 0.5;
     vColor = color;
@@ -34,6 +34,8 @@ uniform vec2 focusPos;
 uniform float fogFalloff;
 uniform vec3 fogBlue, fogYellow;
 uniform vec3 lightSource, cameraSource;
+uniform float zOffset, xOffset, yOffset;
+uniform float steepness, slopeZ;
 
 vec2 hash(ivec2 p) {
     // 2D -> 1D
@@ -72,7 +74,7 @@ float fbm(vec2 p) {
     float a = 0.0;
     float b = 1.0;
     vec2  d = vec2(0);
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 6; i++) {
         vec3 n = noised(p);
         d += n.yz;
         a += b * n.x / (1.0 + dot(d, d));
@@ -93,9 +95,9 @@ vec3 applyFog(vec3  col, // color of pixel
 }
 void main() {
     float localX = vUV.x * 16 / 9;
-    float z = 4 + zLayer;
+    float z = 4 + zLayer + zOffset;
     vec3 point = vec3(localX, vUV.y, z * 0.1);
-    vec2 focusOffset = focusPos * vec2(0.02, 0.011);
+    vec2 focusOffset = focusPos * vec2(0.016, 0.009);
     vec3 actualLight = lightSource + vec3(focusOffset, 0) * 12;
 
     if (zLayer == 11.0) {
@@ -106,16 +108,15 @@ void main() {
         return;
     }
 
-
-    float height = 0.24 + 0.034 * zLayer + focusOffset.y * zLayer - focusOffset.y * 3.7;
-    float x = localX * 0.3 * z + (uTime * 0.005) * zLayer - focusOffset.x * zLayer;
-    vec4 result = vUV.y < (height + (3.5 / z) * fbm(vec2(x, z))) ? vColor : vec4(0.0);
+    float height = yOffset + slopeZ * zLayer + focusOffset.y * zLayer - focusOffset.y * 3.7;
+    float x = (xOffset + localX) * 0.3 * z + (uTime * 0.005) * zLayer - focusOffset.x * zLayer;
+    if (vUV.y >= (height + (steepness / z) * fbm(vec2(x, z)))) discard;
 
     vec3 dir = point - cameraSource;
     float dist = length(dir);
-    result.rgb = applyFog(result.rgb, dist, dir / dist, normalize(actualLight - point));
+    vec3 result = applyFog(vColor.rgb, dist, dir / dist, normalize(actualLight - point));
 
-    glColor = result;
+    glColor = vec4(result, vColor.a);
 }
 )");
 
@@ -134,17 +135,7 @@ void main() {
     }
 
     void TerrainRenderer::SetupTerrain(Span<const fColor> colors, int layers) {
-        {
-            auto b = terrain.NewBatch();
-            const fColor color = 0xcce6ff_rgb;
-            b.PushV({ { -1, -1, 11 }, color });
-            b.PushV({ { -1, +1, 11 }, color });
-            b.PushV({ { +1, +1, 11 }, color });
-            b.PushV({ { +1, -1, 11 }, color });
-            b.Quad(0, 1, 2, 3);
-        }
-
-        for (int z = layers; z --> 0; ) {
+        for (int z = 0; z < layers; ++z) {
             auto b = terrain.NewBatch();
             const float zf = (float)z;
             const fColor& color = colors[z];
@@ -155,6 +146,17 @@ void main() {
             b.PushV({ { +1, -1, zf }, color });
             b.Quad(0, 1, 2, 3);
         }
+
+        {
+            auto b = terrain.NewBatch();
+            const fColor color = 0xcce6ff_rgb;
+            b.PushV({ { -1, -1, 11 }, color });
+            b.PushV({ { -1, +1, 11 }, color });
+            b.PushV({ { +1, +1, 11 }, color });
+            b.PushV({ { +1, -1, 11 }, color });
+            b.Quad(0, 1, 2, 3);
+        }
+
         render.BeginContext();
         render.AddMesh(terrain);
         render.EndContext();
@@ -174,6 +176,11 @@ void main() {
                 { "fogYellow",    fogYellow },
                 { "lightSource",  lightSource },
                 { "cameraSource", cameraSource },
+                { "zOffset",      zOffset },
+                { "xOffset",      xOffset },
+                { "yOffset",      yOffset },
+                { "steepness",    steepness },
+                { "slopeZ",       slopeZ },
             },
             .useDefaultArguments = false
         });
