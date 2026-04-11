@@ -34,14 +34,14 @@ namespace Carpet {
             }
         };
 
-        FrameBuffer fbo;
+        FrameBuffer fboSDF, fboHeight;
         Texture2D distanceMap, heightMap;
         iv2 canvasSize;
 
         RenderObject<Vtx> render;
         Mesh<Vtx> mesh;
         Shader heightCalcShader, glassShader;
-        Shader blurXShader, blurYShader;
+        Shader gaussBlurShader;
 
 #ifndef NDEBUG
         Shader heightVis;
@@ -51,13 +51,22 @@ namespace Carpet {
     private:
         float strength = 5.0f, padding;
     public:
-        Texture2D background, backgroundGlass;
+        Texture2D background;
+    private:
+        FrameBuffer fboBackground[2];
+        RenderBuffer rboBackground;
+        Texture2D backgroundGlass[2];
+    public:
         float eta = 0.667, height = 60.0f, bevelRadius = 20.0f;
         fv3 lightDirection = { 0.48f, 0.36f, 0.8f };
         fColor glassTint = { 1.0f, 1.0f, 1.0f, 0.0f };
 
         float dropShadowRadius = 8.0f, dropShadowPow = 0.1f;
         float mainShadowDist = 30.0f, mainShadowPow = 0.5f;
+
+        enum TEXTURE_SLOTS {
+            BACKGROUND = 4, BACKGROUND_GLASS_0, BACKGROUND_GLASS_1, HEIGHTMAP, SDFMAP, FONT_SDF
+        };
     public:
         GlassRenderer(GraphicsDevice& gd);
 
@@ -75,6 +84,7 @@ namespace Carpet {
         void BindFont(const Font& font);
 
         void Render();
-        void ApplyGlassFilter();
+        void BeginBackground();
+        void EndBackground();
     };
 } // Carpet

@@ -1,5 +1,6 @@
 #include "GlassRenderer.h"
 
+#include "glp.h"
 #include "GraphicsDevice.h"
 #include "Fonts/Font.h"
 #include "res/Shaders.h"
@@ -15,14 +16,41 @@ namespace Carpet {
         heightMap = Texture2D::New(nullptr, canvasSize, {
             .internalformat = TextureIFormat::RGBA_32F, .type = TID::FLOAT,
         });
-        fbo = FrameBuffer::New();
+
+        background = Texture2D::New(nullptr, canvasSize);
+        backgroundGlass[0] = Texture2D::New(nullptr, canvasSize);
+        backgroundGlass[1] = Texture2D::New(nullptr, canvasSize);
+
+        fboSDF = FrameBuffer::With(distanceMap);
+        fboHeight = FrameBuffer::With(heightMap);
+
+        rboBackground = RenderBuffer::New(TextureIFormat::DEPTH, canvasSize);
+        fboBackground[0] = FrameBuffer::New();
+        fboBackground[0].Bind();
+        fboBackground[0].Attach(rboBackground, AttachmentType::DEPTH);
+
+        fboBackground[1] = FrameBuffer::With(backgroundGlass[1]);
 
         render->shader = Shader::New(Shaders::SDFCalcVert, Shaders::SDFCalcFrag);
-        heightCalcShader = Shader::NewFragment(Shaders::HeightCalcFrag);
-        glassShader = Shader::NewFragment(Shaders::GlassFrag);
 
-        // blurXShader = Shader::NewFragment(Shaders::GaussBlurXFrag);
-        // blurYShader = Shader::NewFragment(Shaders::GaussBlurYFrag);
+        heightCalcShader = Shader::NewFragment(Shaders::HeightCalcFrag);
+        heightCalcShader.Bind();
+        heightCalcShader.SetUniformArgs({
+            { "disGraMap", distanceMap, SDFMAP }
+        });
+
+        glassShader = Shader::NewFragment(Shaders::GlassFrag);
+        glassShader.Bind();
+        glassShader.SetUniformArgs({
+            { "bgPlain",   background,         BACKGROUND },
+            { "bgGlass",   backgroundGlass[0], BACKGROUND_GLASS_0 },
+            { "heightmap", heightMap,          HEIGHTMAP },
+        });
+        backgroundGlass[1].Activate(BACKGROUND_GLASS_1);
+        GL::ActiveTexture(GL::TEXTURE0);
+
+        gaussBlurShader = Shader::NewFragment(Shaders::GaussBlurFrag);
+        gaussBlurShader.Bind();
 
 #ifndef NDEBUG
         heightVis = Shader::NewFragment(Shaders::HeightDebugFrag);
@@ -104,7 +132,7 @@ namespace Carpet {
     }
 
     void GlassRenderer::DrawSegment(const fv2& start, const fv2& end, float r) {
-        fv2 N = (end - start).Norm(), T = N.Perpend(), X = T * (r + padding);
+        const fv2 N = (end - start).Norm(), T = N.Perpend(), X = T * (r + padding);
 
         DrawSemiCirc(start, -N, r);
         DrawSemiCirc(end,    N, r);
@@ -152,19 +180,15 @@ namespace Carpet {
     }
 
     void GlassRenderer::BindFont(const Font& font) {
-        static constexpr int SDF_ACTIVATE_ID = 8;
         render->shader.Bind();
-        render->shader.SetUniformTex("fontSDF", font.GetTexture(), SDF_ACTIVATE_ID);
+        render->shader.SetUniformTex("fontSDF", font.GetTexture(), FONT_SDF);
     }
 
     void GlassRenderer::Render() {
         // use additive rendering for heightmap; no need for alpha blending
         Render::UseBlendFunc(BlendFactor::ONE, BlendFactor::ONE);
-        Render::DisableDepth();
 
-        fbo.Bind();
-        fbo.Attach(distanceMap);
-        fbo.BindDrawDest();
+        fboSDF.BindDrawDest();
         Render::SetClearColor({ 0, 0 });
         Render::Clear();
         render.Draw(Spans::Only(mesh), {
@@ -176,16 +200,14 @@ namespace Carpet {
             .useDefaultArguments = false
         });
 
-        fbo.Bind();
-        fbo.Attach(heightMap);
-        fbo.BindDrawDest();
+
+        fboHeight.BindDrawDest();
         Render::DisableBlend();
         heightCalcShader.Bind();
         heightCalcShader.SetUniformFloat("bevelRadius", bevelRadius);
         heightCalcShader.SetUniformFloat("strength", strength);
-        heightCalcShader.SetUniformTex("disGraMap", distanceMap, 0);
         Render::DrawScreenQuad(heightCalcShader);
-        fbo.Unbind();
+        FrameBuffer::UnbindDrawDest();
 
         mesh.Clear();
 
@@ -197,7 +219,7 @@ namespace Carpet {
         if (debugHeightmap) {
             heightVis.Bind();
             heightVis.SetUniformArgs({
-                { "heightmap",        heightMap, 0 },
+                { "heightmap",        HEIGHTMAP },
                 { "bevelRadius",      bevelRadius },
                 { "showActualHeight", showActualHeight }
             });
@@ -208,9 +230,6 @@ namespace Carpet {
 
         glassShader.Bind();
         glassShader.SetUniformArgs({
-            { "heightmap",   heightMap, 0 },
-            { "bgPlain",     background,      4 },
-            { "bgGlass",     backgroundGlass, 5 },
             { "lightSource", lightDirection },
             { "screenSize",  (fv2)canvasSize },
             { "eta",         eta },
@@ -226,7 +245,26 @@ namespace Carpet {
         Render::DrawScreenQuad(glassShader);
     }
 
-    void GlassRenderer::ApplyGlassFilter() {
+    void GlassRenderer::BeginBackground() {
+        fboBackground[0].Bind();
+        fboBackground[0].Attach(background);
+    }
 
+    void GlassRenderer::EndBackground() {
+        Render::DisableDepth();
+
+        for (int i = 0; i < 3; ++i) {
+            fboBackground[1].Bind();
+            gaussBlurShader.Bind();
+            gaussBlurShader.SetUniformInt("image", i == 0 ? BACKGROUND : BACKGROUND_GLASS_0);
+            gaussBlurShader.SetUniformFv2("offsetDir", { 1, 0 });
+            Render::DrawScreenQuad(gaussBlurShader);
+
+            fboBackground[0].Bind();
+            if (i == 0) fboBackground[0].Attach(backgroundGlass[0]);
+            gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 1 });
+            Render::DrawScreenQuad(gaussBlurShader);
+        }
     }
 } // Carpet

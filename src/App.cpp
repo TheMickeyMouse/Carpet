@@ -24,8 +24,6 @@ namespace Carpet {
 
         // assRenderer.background      = Texture2D::LoadPNG("../bg_day_plain.png");
         // assRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_day_glass.png");
-        glassRenderer.background      = Texture2D::LoadPNG("../normal_terrain.png");
-        glassRenderer.backgroundGlass = Texture2D::LoadPNG("../blur_terrain.png");
         glassRenderer.bevelRadius = 25;
         glassRenderer.height = 80.0f;
         glassRenderer.lightDirection = fv3 { 4, 7, 10 };
@@ -50,19 +48,20 @@ namespace Carpet {
             return false;
         }
 
-        if (rendererID == GLASS) {
-            glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
-            glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
-            glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
-            glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
+        glassRenderer.BeginBackground();
+        Render::Clear();
+        terrainRenderer.Render(gdevice);
+        glassRenderer.EndBackground();
 
-            Debug::DateTime time = Debug::Timer::Now();
-            glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 500 }, 240, 10.0f);
+        glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
+        glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
+        glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
+        glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
 
-            glassRenderer.Render();
-        } else if (rendererID == TERRAIN) {
-            terrainRenderer.Render(gdevice);
-        }
+        Debug::DateTime time = Debug::Timer::Now();
+        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 500 }, 240, 10.0f);
+
+        glassRenderer.Render();
 
         // canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
         // canvas.DrawRect({ { 200, 300 }, { 600, 600 } });
@@ -72,37 +71,36 @@ namespace Carpet {
 
         showDebug ^= gdevice.GetIO()['H'].OnPress();
         if (showDebug) {
-            ImGui::Combo("Renderer", (int*)&rendererID, "Glass\0Terrain\0\0");
-            if (rendererID == GLASS) {
-                float s = glassRenderer.GetSmoothingStrength();
-                ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
-                if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
+            float s = glassRenderer.GetSmoothingStrength();
+            ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
+            if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
 
-                // glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
-                // ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
+            // glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
+            // ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
-                ImGui::EditVector("Pos", pos);
-                ImGui::EditRotation2D("Light", light);
-                glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
+            ImGui::EditVector("Pos", pos);
+            ImGui::EditRotation2D("Light", light);
+            glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-                ImGui::EditColor("Tint", glassRenderer.glassTint);
+            ImGui::EditColor("Tint", glassRenderer.glassTint);
 
-                ImGui::EditScalar("Drop Radius", glassRenderer.dropShadowRadius, 0.2,  fRange { 0, 10 });
-                ImGui::EditScalar("Drop Pow",    glassRenderer.dropShadowPow,    0.05, fRange { 0, 1 });
-                ImGui::EditScalar("Main Dist",   glassRenderer.mainShadowDist,   0.4,  fRange { 0, 50 });
-                ImGui::EditScalar("Main Pow",    glassRenderer.mainShadowPow,    0.05, fRange { 0, 1 });
-            } else if (rendererID == TERRAIN) {
-                ImGui::EditScalar("Fog Falloff", terrainRenderer.fogFalloff, 0.03, fRange { 0, 3 });
-                ImGui::EditColor("Fog Blue", terrainRenderer.fogBlue);
-                ImGui::EditColor("Fog Yellow", terrainRenderer.fogYellow);
-                ImGui::EditVector("Light Source", terrainRenderer.lightSource, 0.05);
-                ImGui::EditVector("Camera", terrainRenderer.cameraSource, 0.05);
-                ImGui::EditScalar("Z Offset", terrainRenderer.zOffset, 0.03);
-                ImGui::EditScalar("X Offset", terrainRenderer.xOffset, 0.03);
-                ImGui::EditScalar("Y Offset", terrainRenderer.yOffset, 0.001);
-                ImGui::EditScalar("Steepness", terrainRenderer.steepness, 0.01);
-                ImGui::EditScalar("Slope Z",   terrainRenderer.slopeZ,    0.01);
-            }
+            ImGui::EditScalar("Drop Radius", glassRenderer.dropShadowRadius, 0.2,  fRange { 0, 10 });
+            ImGui::EditScalar("Drop Pow",    glassRenderer.dropShadowPow,    0.05, fRange { 0, 1 });
+            ImGui::EditScalar("Main Dist",   glassRenderer.mainShadowDist,   0.4,  fRange { 0, 50 });
+            ImGui::EditScalar("Main Pow",    glassRenderer.mainShadowPow,    0.05, fRange { 0, 1 });
+
+            ImGui::Separator();
+
+            ImGui::EditScalar("Fog Falloff", terrainRenderer.fogFalloff, 0.03, fRange { 0, 3 });
+            ImGui::EditColor("Fog Blue", terrainRenderer.fogBlue);
+            ImGui::EditColor("Fog Yellow", terrainRenderer.fogYellow);
+            ImGui::EditVector("Light Source", terrainRenderer.lightSource, 0.05);
+            ImGui::EditVector("Camera", terrainRenderer.cameraSource, 0.05);
+            ImGui::EditScalar("Z Offset", terrainRenderer.zOffset, 0.03);
+            ImGui::EditScalar("X Offset", terrainRenderer.xOffset, 0.03);
+            ImGui::EditScalar("Y Offset", terrainRenderer.yOffset, 0.001);
+            ImGui::EditScalar("Steepness", terrainRenderer.steepness, 0.01);
+            ImGui::EditScalar("Slope Z",   terrainRenderer.slopeZ,    0.01);
 
             gdevice.DebugMenu();
         }

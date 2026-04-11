@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GLObject.h"
+#include "Texture.h"
 #include "Utils/Math/Rect.h"
 
 namespace Quasi::Graphics {
@@ -37,6 +38,15 @@ namespace Quasi::Graphics {
     public:
         FrameBuffer() = default;
         static FrameBuffer New();
+        template <TextureTarget Target>
+        static FrameBuffer With(const TextureObject<Target>& tex, int mipmapLvl = 0) {
+            FrameBuffer fbo = New();
+            fbo.Bind();
+            fbo.Attach(tex, mipmapLvl);
+            fbo.Unbind();
+            return fbo;
+        }
+
         static void DestroyObject(GraphicsID id);
         static void BindObject(GraphicsID id);
         static void UnbindObject();

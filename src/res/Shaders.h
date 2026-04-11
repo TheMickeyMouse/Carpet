@@ -57,7 +57,7 @@ vec3 SDF(vec4 uv, int prim) {
 void main() {
     vec3 sdf = SDF(vUVs, vPrim);
     float s = exp(min(-sdf.z / strength, bevelRadius));
-    glColor = vec4(sdf.xy * s, s, -sdf.z);
+    glColor = vec4(sdf.xy * s, s, 1.0);
 })";
 #pragma endregion
 
@@ -122,7 +122,7 @@ void main() {
     float d = d_gra.z, z = log(d) * strength;
     vec3 h = height(z);
     vec3 n = vec3(d_gra.xy * h.x, d * h.y);
-    glColor = vec4(normalize(n), z > 0.0 ? h.z : z);
+    glColor = z < 0.0 ? vec4(0.0, 0.0, 0.0, z) : vec4(normalize(n), h.z);
 }
 )";
 #pragma endregion
@@ -173,9 +173,7 @@ void main() {
         return;
     }
 
-    vec3 pos = vec3(vPosition * screenSize, h.w);
-    pos.xy /= screenSize;
-    pos.z += height;
+    vec3 pos = vec3(vPosition, h.w + height);
 
     vec3 dirR = refract(vec3(0, 0, -1), h.xyz, eta * 1.15),
          dirG = refract(vec3(0, 0, -1), h.xyz, eta),
@@ -187,7 +185,7 @@ void main() {
         texture(bgGlass, pos.xy - dirB.xy / screenSize * (pos.z / dirB.z)).b
     );
 
-    result = result * mix(vec3(1), glassTint.rgb, glassTint.a);
+    result *= mix(vec3(1), glassTint.rgb, glassTint.a);
 
     float L = -cos(3.1415926 * dot(h.xy, normalize(lightSource.xy)));
     float lum = lumi(result), light = (0.8 + L) * 0.2, invlum = 1 / sqrt(lum + 0.01);
@@ -205,12 +203,13 @@ void main() {
 #pragma region Gaussian Blur
     // check out https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/
     // language=GLSL
-    static constexpr const char* GaussBlurXFrag =
+    static constexpr const char* GaussBlurFrag =
 R"(
 #version 330 core
 layout (location = 0) out vec4 glColor;
 in vec2 vPosition;
 uniform sampler2D image;
+uniform vec2 offsetDir;
 
 void main(void) {
     const float offset[3] = float[](0.0, 1.3846153846, 3.2307692308);
@@ -218,27 +217,7 @@ void main(void) {
 
     glColor = texture2D(image, vPosition) * weight[0];
     for (int i = 1; i < 3; i++) {
-        vec2 xOff = vec2(offset[i] / textureSize(image, 0).x, 0);
-        glColor += texture2D(image, vPosition + xOff) * weight[i];
-        glColor += texture2D(image, vPosition - xOff) * weight[i];
-    }
-}
-)";
-    // language=GLSL
-    static constexpr const char* GaussBlurYFrag =
-R"(
-#version 330 core
-layout (location = 0) out vec4 glColor;
-in vec2 vPosition;
-uniform sampler2D image;
-
-void main(void) {
-    const float offset[3] = float[](0.0, 1.3846153846, 3.2307692308);
-    const float weight[3] = float[](0.2270270270, 0.3162162162, 0.0702702703);
-
-    glColor = texture2D(image, vPosition) * weight[0];
-    for (int i = 1; i < 3; i++) {
-        vec2 xOff = vec2(0, offset[i] / textureSize(image, 0).y);
+        vec2 xOff = offset[i] * (offsetDir / textureSize(image, 0));
         glColor += texture2D(image, vPosition + xOff) * weight[i];
         glColor += texture2D(image, vPosition - xOff) * weight[i];
     }
