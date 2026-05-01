@@ -1,9 +1,10 @@
 #include "TerrainRenderer.h"
 
+#include "glp.h"
 #include "GraphicsDevice.h"
 
 namespace Carpet {
-    TerrainRenderer::TerrainRenderer(GraphicsDevice& gd)
+    TerrainRenderer::TerrainRenderer(GraphicsDevice& gd, int detail, int layers)
         : render(gd.CreateNewRender<Vtx>(4 * 25, 2 * 25)) {
         // language=GLSL
         render->shader = Shader::New(
@@ -36,53 +37,8 @@ uniform vec3 fogBlue, fogYellow;
 uniform vec3 lightSource, cameraSource;
 uniform float zOffset, xOffset, yOffset;
 uniform float steepness, slopeZ;
+uniform sampler2D terrainMap;
 
-vec2 hash(ivec2 p) {
-    // 2D -> 1D
-    ivec2 n = p.x * ivec2(3, 37) + p.y * ivec2(311, 113);
-
-    // 1D hash by Hugo Elias
-	n = (n << 13) ^ n;
-    n = n * (n * n * 15731 + 789221) + 1376312589;
-    return -1 + 2 * vec2(n & ivec2(0x0fffffff)) / float(0x0fffffff);
-}
-vec3 noised(vec2 x) {
-    ivec2 i = ivec2(floor(x));
-    vec2 f = fract(x);
-
-    vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
-    vec2 du = 30.0*f*f*(f*(f-2.0)+1.0);
-
-    vec2 ga = hash(i + ivec2(0, 0));
-    vec2 gb = hash(i + ivec2(1, 0));
-    vec2 gc = hash(i + ivec2(0, 1));
-    vec2 gd = hash(i + ivec2(1, 1));
-
-    float va = dot(ga, f - vec2(0, 0));
-    float vb = dot(gb, f - vec2(1, 0));
-    float vc = dot(gc, f - vec2(0, 1));
-    float vd = dot(gd, f - vec2(1, 1));
-
-    return vec3(va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd),   // value
-                ga + u.x*(gb-ga) + u.y*(gc-ga) + u.x*u.y*(ga-gb-gc+gd) +  // derivatives
-                du * (u.yx*(va-vb-vc+vd) + vec2(vb,vc) - va));
-}
-
-const mat2 m = mat2(0.8, -0.6, 0.6, 0.8);
-// from inigo quilez
-float fbm(vec2 p) {
-    float a = 0.0;
-    float b = 1.0;
-    vec2  d = vec2(0);
-    for (int i = 0; i < 6; i++) {
-        vec3 n = noised(p);
-        d += n.yz;
-        a += b * n.x / (1.0 + dot(d, d));
-        b *= 0.5;
-        p = m * p * 2.0;
-    }
-    return a;
-}
 vec3 applyFog(vec3  col, // color of pixel
               float t,   // distance to point
               vec3  rd,  // camera to point
@@ -110,7 +66,8 @@ void main() {
 
     float height = yOffset + slopeZ * zLayer + focusOffset.y * zLayer - focusOffset.y * 3.7;
     float x = (xOffset + localX) * 0.3 * z + (uTime * 0.005) * zLayer - focusOffset.x * zLayer;
-    if (vUV.y >= (height + (steepness / z) * fbm(vec2(x, z)))) discard;
+    float h = 2 * texture(terrainMap, vec2(x / 4.0, (zLayer + 0.5) / 10.0)).r - 1;
+    if (vUV.y >= (height + (steepness / z) * h)) discard;
 
     vec3 dir = point - cameraSource;
     float dist = length(dir);
@@ -120,6 +77,8 @@ void main() {
 }
 )");
 
+        GenerateTerrainMap(detail, layers);
+
         // cool colors: #001219, #1d3557, #457b9d, #a8dadc, #f1faee
         fColor anchorColors[] = { 0x001219_rgb, 0x1d3557_rgb, 0x457b9d_rgb, 0xa8dadc_rgb };
         int anchorPoints[]    = { 0,            3,            6,            9 };
@@ -127,7 +86,7 @@ void main() {
         fColor colors[10];
         for (int i = 0, j = 1; i < 10; i++) {
             if (i > anchorPoints[j]) ++j;
-            int p = i - anchorPoints[j - 1], q = anchorPoints[j] - anchorPoints[j - 1];
+            const int p = i - anchorPoints[j - 1], q = anchorPoints[j] - anchorPoints[j - 1];
             colors[i] = anchorColors[j - 1].Lerp(anchorColors[j], p, q);
         }
 
@@ -184,5 +143,69 @@ void main() {
             },
             .useDefaultArguments = false
         });
+    }
+
+    void TerrainRenderer::GenerateTerrainMap(int detail, int layers) {
+        ArrayBox<byte> terrainMapImg = ArrayBox<byte>::AllocateUninit(layers << detail);
+
+        static constexpr auto HASH2D = [] (const iv2& x) {
+            int nx = x.x * 3 + x.y * 311,
+                ny = x.x * 37 + x.y * 113;
+
+            // 1D hash by Hugo Elias
+            nx ^= nx << 13; ny ^= ny << 13;
+            nx = nx * (nx * nx * 15731 + 789221) + 1376312589;
+            ny = ny * (ny * ny * 15731 + 789221) + 1376312589;
+            const fv2 v = { (nx & 0x0fffffff) / (float)0x0fffffff, (ny & 0x0fffffff) / (float)0x0fffffff };
+            return -1 + 2 * v;
+        };
+        static constexpr auto NOISE = [] (const fv2& x) {
+            const iv2 i = { (int)std::floor(x.x), (int)std::floor(x.y) };
+            const fv2 f = x - (fv2)i;
+
+            const fv2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+            const fv2 du = 30.0*f*f*(f*(f-2.0)+1.0);
+
+            const fv2 ga = HASH2D({ i.x + 0, i.y + 0 });
+            const fv2 gb = HASH2D({ i.x + 1, i.y + 0 });
+            const fv2 gc = HASH2D({ i.x + 0, i.y + 1 });
+            const fv2 gd = HASH2D({ i.x + 1, i.y + 1 });
+
+            const float va = ga.Dot(f);
+            const float vb = gb.Dot(f) - gb.x;
+            const float vc = gc.Dot(f) - gc.y;
+            const float vd = gd.Dot(f) - gd.x - gd.y;
+
+            fv2 dxdy = ga + u.x * (gb - ga) + u.y*(gc-ga)
+                     + u.x*u.y*(ga-gb-gc+gd)
+                     + du * (fv2(u.y, u.x)*(va-vb-vc+vd) + fv2(vb,vc) - va);
+
+            return Tuple(va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd), dxdy);
+        };
+
+        for (usize k = 0; k < layers; ++k) {
+            for (usize i = 0; i < 1 << detail; ++i) {
+                fv2   p = { i / (float)(1 << (detail - 2)), (float)k + 4.0f };
+                float a = 0.5;
+                float b = 0.5;
+                fv2   d = 0;
+                for (int j = 0; j < 6; j++) {
+                    auto [val, deriv] = NOISE(p);
+                    d += deriv;
+                    a += b * val / (1.0f + d.LenSq());
+                    b *= 0.5;
+                    p = p.ComplexMul(1.6, -1.2);
+                }
+                terrainMapImg[i | (k << detail)] = (byte)(a * 255.0f);
+            }
+        }
+        terrainMap = Texture2D::New(terrainMapImg.Data(), { 1 << detail, layers },
+            { .format = TextureFormat::RED, .internalformat = TextureIFormat::R_8,
+              .border = TextureBorder::MIRRORED_REPEAT, .type = TID::BYTE }
+        );
+        terrainMap.Activate(TERRAIN_MAP_SLOT);
+        render->shader.Bind();
+        render->shader.SetUniformInt("terrainMap", TERRAIN_MAP_SLOT);
+        GL::ActiveTexture(GL::TEXTURE0);
     }
 }

@@ -164,7 +164,7 @@ void main() {
     if (h.w <= 0.0) {
         vec3 result = texture(bgPlain, vPosition).rgb;
 
-        float shadow = 0.94;
+        float shadow = 0.97;
         float w = max(texture(heightmap, vPosition + lightSource.xy * mainShadowDist / screenSize).w / bevelRadius, 0);
         shadow *= 1 - smoothstep(0, 1, 0.4 * w * w) * mainShadowPow;
         shadow *= 1 - smoothstep(-1, 0, h.w / dropShadowRadius) * dropShadowPow;
@@ -203,6 +203,8 @@ void main() {
 #pragma region Gaussian Blur
     // check out https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/
     // language=GLSL
+
+
     static constexpr const char* GaussBlurFrag =
 R"(
 #version 330 core
@@ -212,19 +214,18 @@ uniform sampler2D image;
 uniform vec2 offsetDir;
 
 void main(void) {
-    const float offset[3] = float[](0.0, 1.3846153846, 3.2307692308);
-    const float weight[3] = float[](0.2270270270, 0.3162162162, 0.0702702703);
+    const float offset[9] = float[](0.00000000, 1.47169811, 3.43396226, 5.39622642, 7.35849057, 9.32075472, 11.28301887, 13.24528302, 15.20754717);
+    const float weight[9] = float[](0.110116259, 0.200714557, 0.138423832, 0.070607318, 0.026430547, 0.007174006, 0.001387859, 0.000186827, 0.000016925);
 
     glColor = texture2D(image, vPosition) * weight[0];
-    for (int i = 1; i < 3; i++) {
-        vec2 xOff = offset[i] * (offsetDir / textureSize(image, 0));
+    for (int i = 1; i < 9; i++) {
+        vec2 xOff = 3 * offset[i] * (offsetDir / textureSize(image, 0));
         glColor += texture2D(image, vPosition + xOff) * weight[i];
         glColor += texture2D(image, vPosition - xOff) * weight[i];
     }
 }
 )";
 #pragma endregion
-
 #pragma region Debugging
     // language=GLSL
     static constexpr const char* HeightDebugFrag =

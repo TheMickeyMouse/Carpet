@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "RenderObject.h"
 #include "GLs/Shader.h"
+#include "GLs/Texture.h"
 
 namespace Carpet {
     class TerrainRenderer {
@@ -16,6 +17,9 @@ namespace Carpet {
         RenderObject<Vtx> render;
         Mesh<Vtx> terrain;
         fv2 focusPosition = 0.5f;
+        Texture2D terrainMap;
+
+        static constexpr int TERRAIN_MAP_SLOT = 3;
     public:
         float fogFalloff = 0.004;
         fColor3 fogBlue = { 0.041, 0.114, 0.280 }, fogYellow = { 1.0, 0.935, 0.750 };
@@ -23,9 +27,11 @@ namespace Carpet {
         float zOffset = 0.0, xOffset = 0.0f, yOffset = 0.24f;
         float steepness = 3.5f, slopeZ = 0.034f;
     public:
-        TerrainRenderer(GraphicsDevice& gd);
+        TerrainRenderer(GraphicsDevice& gd, int detail, int layers);
 
         void SetupTerrain(Span<const fColor> colors, int layers);
         void Render(GraphicsDevice& gd);
+
+        void GenerateTerrainMap(int detail, int layers);
     };
 }

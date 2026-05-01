@@ -156,6 +156,10 @@ namespace Carpet {
         const float R = 2 * (FontDevice::SPREAD) * relativeFontSize;
         const float thickness = r * 0.5f / R;
 
+        // idk why but this makes the glass look better. help.
+        // you might have to change this depending on the font.
+        static constexpr float H_SCALE = 1.8f;
+
         fv2 pen = pos - fv2 { w / 2.0f, (float)font.GetMetric().descend * pointScale };
         for (const char c : text) {
             if (Chr::IsWhitespace(c)) {
@@ -168,10 +172,10 @@ namespace Carpet {
             const fv2 start = (fv2)glyph.offset * relativeFontSize + pen,
                       dim   = rsize * relativeFontSize;
 
-            batch.PushV(Vtx::TexSDF(start,                      uv.BottomLeft(),  R, thickness));
-            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, 0),      uv.BottomRight(), R, thickness));
-            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, -dim.y), uv.TopRight(),    R, thickness));
-            batch.PushV(Vtx::TexSDF(start + fv2(0,     -dim.y), uv.TopLeft(),     R, thickness));
+            batch.PushV(Vtx::TexSDF(start,                      uv.BottomLeft(),  R * H_SCALE, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, 0),      uv.BottomRight(), R * H_SCALE, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(dim.x, -dim.y), uv.TopRight(),    R * H_SCALE, thickness));
+            batch.PushV(Vtx::TexSDF(start + fv2(0,     -dim.y), uv.TopLeft(),     R * H_SCALE, thickness));
             batch.Quad(0, 1, 2, 3);
             batch.Reload();
 
@@ -253,7 +257,7 @@ namespace Carpet {
     void GlassRenderer::EndBackground() {
         Render::DisableDepth();
 
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 1; ++i) {
             fboBackground[1].Bind();
             gaussBlurShader.Bind();
             gaussBlurShader.SetUniformInt("image", i == 0 ? BACKGROUND : BACKGROUND_GLASS_0);

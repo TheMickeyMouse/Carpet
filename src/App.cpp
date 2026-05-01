@@ -10,7 +10,7 @@ namespace Carpet {
             .resizable = false, .decorated = false, .initalFocused = false,
             .floating = false,
             .transparent = true, .focusOnShow = false
-        })), canvas(gdevice), glassRenderer(gdevice), terrainRenderer(gdevice) {
+        })), canvas(gdevice), glassRenderer(gdevice), terrainRenderer(gdevice, 8, 10) {
 #ifdef CARPET_SET_BACKGROUND_BY_DEFAULT
         Sys::PrepareBgWindow(gdevice);
 #endif
