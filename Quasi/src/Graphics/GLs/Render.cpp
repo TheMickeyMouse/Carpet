@@ -79,7 +79,7 @@ namespace Quasi::Graphics::Render {
         QGLCall$(GL::StencilMask(mask));
     }
 
-    void UseStencilWriteOp(StencilOperation stencilFail, StencilOperation depthFail, StencilOperation pass) {
+    void UseStencilWriteOp(StencilOperation pass, StencilOperation stencilFail, StencilOperation depthFail) {
         QGLCall$(GL::StencilOp((int)stencilFail, (int)depthFail, (int)pass));
     }
 

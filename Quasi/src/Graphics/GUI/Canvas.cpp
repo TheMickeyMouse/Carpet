@@ -481,11 +481,11 @@ namespace Quasi::Graphics {
                     [[fallthrough]];
                 }
                 case TextAlign::LEFT: {
-                    DrawTextLine(line, relativeFontSize, { pen.x + beginOffset, pen.y }, align.letterSpacing, font);
+                    DrawTextLine(batch, line, relativeFontSize, { pen.x + beginOffset, pen.y }, align.letterSpacing, font);
                     break;
                 }
                 case TextAlign::JUSTIFY: {
-                    DrawTextJustify(line, relativeFontSize, pen, align.letterSpacing, align.rect.x, font);
+                    DrawTextJustify(batch, line, relativeFontSize, pen, align.letterSpacing, align.rect.x, font);
                     break;
                 }
                 default:;
@@ -683,7 +683,7 @@ namespace Quasi::Graphics {
         const Math::fv2 start = (Math::fv2)glyph.offset * scaling + position,
                         dim   = rsize * scaling;
 
-        SetSDF(canvas.defaultFont.GetTexture().rendererID);
+        SetSDF(atlas.rendererID);
         SetUV(uv.min.x, uv.min.y);
         Push({ start.x,         start.y });
         SetUV(uv.max.x, uv.min.y);
@@ -1057,12 +1057,8 @@ namespace Quasi::Graphics {
         }
     }
 
-    void Canvas::DrawTextLine(Str line, float relSize, const Math::fv2& pos, float letterSpacing, const Font& font) {
+    void Canvas::DrawTextLine(Batch& batch, Str line, float relSize, const Math::fv2& pos, float letterSpacing, const Font& font) {
         const Texture2D& fontAtlas = font.GetTexture();
-        Batch batch = NewBatch();
-        batch.SetStroke();
-        batch.SetTexture(fontAtlas.rendererID);
-
         Math::fv2 pen = pos;
         for (const char c : line) {
             if (Chr::IsWhitespace(c)) {
@@ -1073,7 +1069,7 @@ namespace Quasi::Graphics {
         }
     }
 
-    void Canvas::DrawTextJustify(Str line, float relSize, const Math::fv2& pos, float letterSpacing, float width, const Font& font) {
+    void Canvas::DrawTextJustify(Batch& batch, Str line, float relSize, const Math::fv2& pos, float letterSpacing, float width, const Font& font) {
         float usedWidth = 0;
         int gaps = 0;
         // first pass to calculate widths and spacings
@@ -1089,9 +1085,6 @@ namespace Quasi::Graphics {
         const float wordSpacing = (width - usedWidth) / (float)gaps;
 
         const Texture2D& fontAtlas = font.GetTexture();
-        Batch batch = NewBatch();
-        batch.SetStroke();
-        batch.SetTexture(fontAtlas.rendererID);
 
         Math::fv2 pen = pos;
         for (int i = 0; i < line.Length(); i++) {
@@ -1452,6 +1445,10 @@ namespace Quasi::Graphics {
 
     const Font& Canvas::GetCurrentFont() const {
         return drawAttr.currentFont.UnwrapOr(defaultFont);
+    }
+
+    void Canvas::SetFont(const Font& font) {
+        drawAttr.currentFont = font;
     }
 
     void Canvas::StrokeWeight(float weight) {

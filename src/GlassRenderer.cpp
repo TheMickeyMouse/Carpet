@@ -194,29 +194,39 @@ namespace Carpet {
 
         fboSDF.BindDrawDest();
         Render::SetClearColor({ 0, 0 });
+        // Render::EnableStencil();
         Render::Clear();
+
+        // Render::UseStencilTest(CmpOperation::ALWAYS, 1);
+        // Render::UseStencilWriteOp(StencilOperation::REPLACE);
+        // Render::EnableStencilWrite();
         render.Draw(Spans::Only(mesh), {
             .arguments = {
-                { "screenSize", (fv2)canvasSize },
+                { "screenSize", fv2 { 1920, 1080 } },
                 { "strength",   strength },
                 { "bevelRadius", bevelRadius }
             },
             .useDefaultArguments = false
         });
 
-
         fboHeight.BindDrawDest();
         Render::DisableBlend();
         heightCalcShader.Bind();
         heightCalcShader.SetUniformFloat("bevelRadius", bevelRadius);
         heightCalcShader.SetUniformFloat("strength", strength);
+
+        // Render::UseStencilTest(CmpOperation::EQUAL, 1);
+        // Render::UseStencilWriteOp(StencilOperation::KEEP);
+        // Render::DisableStencilWrite();
         Render::DrawScreenQuad(heightCalcShader);
+
         FrameBuffer::UnbindDrawDest();
+        // Render::DisableStencil();
 
         mesh.Clear();
 
         Render::EnableBlend();
-        Render::UseBlendFunc(BlendFactor::SRC_ALPHA, BlendFactor::INVERT_SRC_ALPHA);
+        Render::UseBlendFunc(BlendFactor::ONE, BlendFactor::INVERT_SRC_ALPHA);
         Render::EnableDepth();
 
 #ifndef NDEBUG
@@ -261,13 +271,13 @@ namespace Carpet {
             fboBackground[1].Bind();
             gaussBlurShader.Bind();
             gaussBlurShader.SetUniformInt("image", i == 0 ? BACKGROUND : BACKGROUND_GLASS_0);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 1, 0 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { 3, 0 });
             Render::DrawScreenQuad(gaussBlurShader);
 
             fboBackground[0].Bind();
             if (i == 0) fboBackground[0].Attach(backgroundGlass[0]);
             gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 1 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 3 });
             Render::DrawScreenQuad(gaussBlurShader);
         }
     }

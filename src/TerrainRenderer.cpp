@@ -176,11 +176,11 @@ void main() {
             const float vc = gc.Dot(f) - gc.y;
             const float vd = gd.Dot(f) - gd.x - gd.y;
 
-            fv2 dxdy = ga + u.x * (gb - ga) + u.y*(gc-ga)
-                     + u.x*u.y*(ga-gb-gc+gd)
-                     + du * (fv2(u.y, u.x)*(va-vb-vc+vd) + fv2(vb,vc) - va);
+            fv2 dxdy = ga + u.x * (gb - ga) + u.y * (gc - ga)
+                     + u.x * u.y * (ga - gb - gc + gd)
+                     + du * (fv2(u.y, u.x) * (va - vb - vc + vd) + fv2(vb, vc) - va);
 
-            return Tuple(va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd), dxdy);
+            return Tuple(va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * (va - vb - vc + vd), dxdy);
         };
 
         for (usize k = 0; k < layers; ++k) {

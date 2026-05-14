@@ -119,7 +119,7 @@ vec3 height(float z) {
 void main() {
     // !! DO NOT CHANGE THIS PART (expect height(z)) !!
     vec3 d_gra = texture(disGraMap, vPosition).xyz;
-    float d = d_gra.z, z = log(d) * strength;
+    float d = d_gra.z, z = log(max(d, 0.001)) * strength;
     vec3 h = height(z);
     vec3 n = vec3(d_gra.xy * h.x, d * h.y);
     glColor = z < 0.0 ? vec4(0.0, 0.0, 0.0, z) : vec4(normalize(n), h.z);
@@ -191,7 +191,8 @@ void main() {
     float lum = lumi(result), light = (0.8 + L) * 0.2, invlum = 1 / sqrt(lum + 0.01);
     float glare = (0.8 + L) * pow(max(0.001, 1 - h.z * h.z), bevelRadius / 3.0f);
 
-    result *= 1.04 + light * invlum;
+    result += 0.04;
+    result *= 1.02 + light * invlum;
     result = saturate(result, 0.05);
     result += (0.25 * glare * invlum) * scaleSat(result, 0.4);
 
@@ -214,12 +215,12 @@ uniform sampler2D image;
 uniform vec2 offsetDir;
 
 void main(void) {
-    const float offset[9] = float[](0.00000000, 1.47169811, 3.43396226, 5.39622642, 7.35849057, 9.32075472, 11.28301887, 13.24528302, 15.20754717);
-    const float weight[9] = float[](0.110116259, 0.200714557, 0.138423832, 0.070607318, 0.026430547, 0.007174006, 0.001387859, 0.000186827, 0.000016925);
+    const float offset[5] = float[](0.0, 1.0, 2.0, 3.0, 4.0);
+    const float weight[5] = float[](0.2270270, 0.1945946, 0.1216216, 0.0540541, 0.0162162);
 
     glColor = texture2D(image, vPosition) * weight[0];
-    for (int i = 1; i < 9; i++) {
-        vec2 xOff = 3 * offset[i] * (offsetDir / textureSize(image, 0));
+    for (int i = 1; i < 5; i++) {
+        vec2 xOff = offset[i] * (offsetDir / textureSize(image, 0));
         glColor += texture2D(image, vPosition + xOff) * weight[i];
         glColor += texture2D(image, vPosition - xOff) * weight[i];
     }

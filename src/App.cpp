@@ -5,9 +5,11 @@
 #include "GUI/ImGuiExt.h"
 
 namespace Carpet {
-    App::App()
-        : gdevice(GraphicsDevice::Initialize(Sys::GetMonitorSize(), {
-            .resizable = false, .decorated = false, .initalFocused = false,
+    App::App(const iv2& screenSize)
+        : gdevice(GraphicsDevice::Initialize(screenSize, {
+            .resizable = false,
+            // .decorated = false,
+            .initalFocused = false,
             .floating = false,
             .transparent = true, .focusOnShow = false
         })), canvas(gdevice), glassRenderer(gdevice), terrainRenderer(gdevice, 8, 10) {
@@ -15,6 +17,8 @@ namespace Carpet {
         Sys::PrepareBgWindow(gdevice);
 #endif
         Instance = *this;
+
+        canvas.SetViewport({ 0, { 1920, 1080 } });
 
         // note to self: how to make decent glassy bgs:
         // duplicate layer -> gaussian blur (r=25)
@@ -28,7 +32,7 @@ namespace Carpet {
         glassRenderer.height = 80.0f;
         glassRenderer.lightDirection = fv3 { 4, 7, 10 };
 
-        font = Font::LoadFile("C:/Users/User/AppData/Local/Microsoft/Windows/Fonts/JetbrainsMono-Medium.ttf", 64);
+        font = Font::LoadFile("C:/Users/User/AppData/Local/Microsoft/Windows/Fonts/JetbrainsMono-Bold.ttf", 64);
         glassRenderer.BindFont(font);
     }
 
@@ -53,18 +57,21 @@ namespace Carpet {
         terrainRenderer.Render(gdevice);
         glassRenderer.EndBackground();
 
-        glassRenderer.DrawBox(fRect2D { { 600, 50 }, { 1320, 400 } } + pos, 25);
-        glassRenderer.DrawCirc(pos + fv2 { 670, 395 }, 30);
-        glassRenderer.DrawCirc(pos + fv2 { 745, 395 }, 30);
-        glassRenderer.DrawSegment(pos + fv2 { 530, 100 }, pos + fv2 { 530, 350 }, 50);
+        glassRenderer.DrawBox(fRect2D { { 730, 90 }, { 1190, 550 } } + pos, 30);
+        glassRenderer.DrawBox(fRect2D { { 1450, 120 }, { 1890, 1050 } } + pos, 30);
+        glassRenderer.DrawSegment(pos + fv2 { 1510, 60 }, pos + fv2 { 1830, 60 }, 30);
 
         Debug::DateTime time = Debug::Timer::Now();
-        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 500 }, 240, 10.0f);
+        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 700 }, 180, 10.0f);
 
         glassRenderer.Render();
 
-        // canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
-        // canvas.DrawRect({ { 200, 300 }, { 600, 600 } });
+        canvas.SetFont(font);
+        canvas.Stroke(0x2c313c_rgb);
+        canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
+
+        canvas.Stroke(0xeeeeee_rgb);
+        canvas.DrawText("Apps", 64, { 1670, 1000 });
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();

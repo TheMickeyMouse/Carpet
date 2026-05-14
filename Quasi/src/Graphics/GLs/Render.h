@@ -199,7 +199,7 @@ namespace Quasi::Graphics::Render {
     void UseStencilWriteMask(int mask);
     inline void EnableStencilWrite()  { UseStencilWriteMask(0xFF); }
     inline void DisableStencilWrite() { UseStencilWriteMask(0x00); }
-    void UseStencilWriteOp(StencilOperation stencilFail, StencilOperation depthFail, StencilOperation pass);
+    void UseStencilWriteOp(StencilOperation pass, StencilOperation stencilFail = StencilOperation::KEEP, StencilOperation depthFail = StencilOperation::KEEP);
 
     void UseAlphaFunc(CmpOperation op, float ref);
 

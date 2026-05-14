@@ -54,7 +54,7 @@ namespace Carpet {
         Texture2D background;
     private:
         FrameBuffer fboBackground[2];
-        RenderBuffer rboBackground;
+        RenderBuffer rboBackground, sdfStencil;
         Texture2D backgroundGlass[2];
     public:
         float eta = 0.667, height = 60.0f, bevelRadius = 20.0f;

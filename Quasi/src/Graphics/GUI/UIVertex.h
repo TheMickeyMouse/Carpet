@@ -29,7 +29,7 @@ namespace Quasi::Graphics {
             TEXTURE_ID_MASK = 0xF0,
             TEXTURE_ID = 0x10,
 
-            SDF_ID_MASK = 0xF00,
+            SDF_ID_MASK = 0xF00 ,
             SDF_ID = 0x100,
         };
 

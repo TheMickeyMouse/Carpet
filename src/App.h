@@ -21,7 +21,7 @@ namespace Carpet {
         Font font;
         bool showDebug = true;
     public:
-        App();
+        App(const iv2& screenSize);
         bool Run();
     };
 }

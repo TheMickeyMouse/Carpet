@@ -178,8 +178,8 @@ namespace Quasi::Graphics {
         void DrawSimpleVarRoundRect(const Math::fRect2D& outer, float tr, float br, float tl, float bl, const Math::fColor& color);
         void DrawRectStroke(const Math::fRect2D& rect);
 
-        void DrawTextLine(Str line, float relSize, const Math::fv2& pos, float letterSpacing, const Font& font);
-        void DrawTextJustify(Str line, float relSize, const Math::fv2& pos, float letterSpacing, float width, const Font& font);
+        void DrawTextLine(Batch& batch, Str line, float relSize, const Math::fv2& pos, float letterSpacing, const Font& font);
+        void DrawTextJustify(Batch& batch, Str line, float relSize, const Math::fv2& pos, float letterSpacing, float width, const Font& font);
     public:
 
         enum CurveMode {
@@ -218,6 +218,7 @@ namespace Quasi::Graphics {
         const DrawAttributes& DrawAttr() const { return drawAttr; }
 
         const Font& GetCurrentFont() const;
+        void SetFont(const Font& font);
 
         void StrokeWeight(float weight);
         void StrokeCap(UIRender::RenderStyle cap);
