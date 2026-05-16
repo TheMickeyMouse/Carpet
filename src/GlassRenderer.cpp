@@ -267,17 +267,27 @@ namespace Carpet {
     void GlassRenderer::EndBackground() {
         Render::DisableDepth();
 
-        for (int i = 0; i < 1; ++i) {
+        {
             fboBackground[1].Bind();
             gaussBlurShader.Bind();
-            gaussBlurShader.SetUniformInt("image", i == 0 ? BACKGROUND : BACKGROUND_GLASS_0);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 3, 0 });
+            gaussBlurShader.SetUniformInt("image", BACKGROUND);
+            gaussBlurShader.SetUniformFv2("offsetDir", { 5, 0 });
             Render::DrawScreenQuad(gaussBlurShader);
 
             fboBackground[0].Bind();
-            if (i == 0) fboBackground[0].Attach(backgroundGlass[0]);
+            fboBackground[0].Attach(backgroundGlass[0]);
             gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 3 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 5 });
+            Render::DrawScreenQuad(gaussBlurShader);
+
+            fboBackground[1].Bind();
+            gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_0);
+            gaussBlurShader.SetUniformFv2("offsetDir", { 1, 0 });
+            Render::DrawScreenQuad(gaussBlurShader);
+
+            fboBackground[0].Bind();
+            gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 1 });
             Render::DrawScreenQuad(gaussBlurShader);
         }
     }

@@ -115,7 +115,7 @@ namespace Quasi::Math {
 
         template <class U, usize M> explicit operator Vector<U, M>() const { return As<U, M>(); }
 
-        bool IsZero() const { return All([] (T x) { return x == 0; }); }
+        bool IsZero() const { return super() == 0; }
         bool NearZero() const { return LenSq() < (T)(f32s::DELTA * f32s::DELTA); }
         Comparison Cmp(const Super& other) const { return AsSpan().Cmp(other.AsSpan()); }
 

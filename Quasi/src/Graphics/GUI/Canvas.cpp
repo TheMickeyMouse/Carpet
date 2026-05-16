@@ -34,12 +34,19 @@ namespace Quasi::Graphics {
     }
 
     Canvas::Canvas() {}
-    Canvas::Canvas(GraphicsDevice& gd) : renderCanvas(gd.CreateNewRender<UIVertex>(16384, 16384)) {
-        const Math::fv2 screenSize = gd.GetWindowSize().As<float>();
-        renderCanvas.SetProjection(Math::Matrix3D::OrthoProjection({ 0, screenSize.AddZ(1) }));
+    Canvas::Canvas(GraphicsDevice& gd) {
+        const Math::iv2 screenSize = gd.GetWindowSize();
 
-        renderCanvas.UseShader(
-            "// #shader vertex\n"
+        vbo = VertexBuffer::New(16384 * sizeof(UIVertex));
+        ibo = IndexBuffer::New(16384 * 3);
+        varray = VertexArray::New();
+        varray.Bind();
+        varray.AddBuffer(vbo, UIVertex::VERTEX_LAYOUT);
+
+        screenTexture = Texture2D::New(nullptr, screenSize);
+        screenBuffer = FrameBuffer::With(screenTexture);
+
+        shaderStd = Shader::New(
             "#version 450 core\n"
             "layout (location = 0) in vec2 position;"
             "layout (location = 1) in vec2 texCoord;"
@@ -52,16 +59,15 @@ namespace Quasi::Graphics {
             "out vec4 vSTUV;"
             "flat out int vRenderPrim;"
             ""
-            "uniform mat4 u_projection, u_view;"
+            "uniform mat4 u_projection;"
             ""
             "void main() {"
-            "    gl_Position = u_projection * u_view * vec4(position, 0.0, 1.0);"
+            "    gl_Position = u_projection * vec4(position, 0.0, 1.0);"
             "    vColor = color;"
             "    vTexCoord = texCoord;"
             "    vSTUV = stuv;"
             "    vRenderPrim = renderPrim;"
-            "}\n"
-            "// #shader fragment\n"
+            "}\n",
             "#version 450 core\n"
             ""
             "layout (location = 0) out vec4 FragColor;"
@@ -112,7 +118,62 @@ namespace Quasi::Graphics {
             "    FragColor = vec4(color.rgb * color.a, color.a);"
             "}"
         );
-        // renderCanvas->shader.SetUniformIntArr("u_textures", CArray<int, 8> { 0, 1, 2, 3, 4, 5, 6, 7 });
+
+        shaderShadowBlur = Shader::New(
+            "#version 450 core\n"
+            "layout (location = 0) in vec2 position;"
+            "layout (location = 1) in vec2 texCoord;"
+            "layout (location = 2) in vec4 color;"
+            "layout (location = 3) in vec4 stuv;"
+            "layout (location = 4) in int renderPrim;"
+            ""
+            "out vec4 vColor;"
+            "out vec2 vTexCoord;"
+            "out float vRadius;"
+            "flat out int vRenderPrim;"
+            ""
+            "uniform mat4 u_projection;"
+            ""
+            "void main() {"
+            "    gl_Position = u_projection * vec4(position, 0.0, 1.0);"
+            "    vColor = color;"
+            "    vTexCoord = texCoord;"
+            "    vRadius = stuv.x;"
+            "    vRenderPrim = renderPrim;"
+            "}\n",
+            "#version 450 core\n"
+            "\n"
+            "layout (location = 0) out vec4 FragColor;\n"
+            "\n"
+            "in vec4 vColor;\n"
+            "in vec2 vTexCoord;\n"
+            "in float vRadius;\n"
+            "flat in int vRenderPrim;\n"
+            "uniform sampler2D sourceTex;\n"
+            "void main() {\n"
+            "    vec4 color = vColor;\n"
+            "    if (vRenderPrim == 1) {\n"
+            "       vec2 s = 0.4 * vRadius / vec2(textureSize(sourceTex, 0));\n"
+            "       float A = texture(sourceTex, vTexCoord + s * vec2(-1.0, -1.0)).a, \n"
+            "             B = texture(sourceTex, vTexCoord + s * vec2( 0.0, -1.0)).a, \n"
+            "             C = texture(sourceTex, vTexCoord + s * vec2( 1.0, -1.0)).a, \n"
+            "             D = texture(sourceTex, vTexCoord + s * vec2(-0.5, -0.5)).a, \n"
+            "             E = texture(sourceTex, vTexCoord + s * vec2( 0.5, -0.5)).a, \n"
+            "             F = texture(sourceTex, vTexCoord + s * vec2(-1.0,  0.0)).a, \n"
+            "             G = texture(sourceTex, vTexCoord).a, \n"
+            "             H = texture(sourceTex, vTexCoord + s * vec2( 1.0,  0.0)).a, \n"
+            "             I = texture(sourceTex, vTexCoord + s * vec2(-0.5,  0.5)).a, \n"
+            "             J = texture(sourceTex, vTexCoord + s * vec2( 0.5,  0.5)).a, \n"
+            "             K = texture(sourceTex, vTexCoord + s * vec2(-1.0,  1.0)).a, \n"
+            "             L = texture(sourceTex, vTexCoord + s * vec2( 0.0,  1.0)).a, \n"
+            "             M = texture(sourceTex, vTexCoord + s * vec2( 1.0,  1.0)).a;\n"
+            "       color *= (D + E + G + I + J) * 0.125 + (B + F + H + L) * 0.0625 + (A + C + K + M) * 0.03125;\n"
+            "    } else { color *= texture(sourceTex, vTexCoord); }\n"
+            "    FragColor = vec4(color.rgb * color.a, color.a);\n"
+            "}\n"
+        );
+
+        SetViewport({ 0, (Math::fv2)screenSize });
     }
 
     void Canvas::DrawTriangle(const Math::fv2& p1, const Math::fv2& p2, const Math::fv2& p3) {
@@ -160,7 +221,9 @@ namespace Quasi::Graphics {
 
     void Canvas::DrawRect(const Math::fRect2D& rect) {
         if (NeedDrawFill()) {
-            DrawSimpleRect(rect, drawAttr.fillColor);
+            Batch b = NewBatch();
+            b.SetFill();
+            DrawSimpleRect(b, rect);
         }
         if (NeedDrawStroke()) {
             DrawRectStroke(rect);
@@ -270,20 +333,6 @@ namespace Quasi::Graphics {
         //       use cubic beziers next time
         if (NeedDrawFill())
             DrawSimpleEllipse(bounds, drawAttr.fillColor);
-        // if (NeedDrawStroke()) {
-        //     const Math::fRect2D rect = bounds.Extrude(drawAttr.strokeWeight);
-        //     Batch batch = NewBatch();
-        //     static constexpr float R2 = Math::ROOT_2;
-        //     const float diagonal = R2 * (radius + thickness);
-        //     float inner = (radius - thickness) / (radius + thickness);
-        //     inner *= inner;
-        //     batch.PushV(UIVertex { bounds.min,                     0, drawAttr.strokeColor, { -1, -1, inner, 0 }, UIRender::CIRCLE });
-        //     batch.PushV(UIVertex { { bounds.max.x, bounds.min.y }, 0, drawAttr.strokeColor, { +1, -1, inner, 0 }, UIRender::CIRCLE });
-        //     batch.PushV(UIVertex { { bounds.min.x, bounds.max.y }, 0, drawAttr.strokeColor, { -1, +1, inner, 0 }, UIRender::CIRCLE });
-        //     batch.PushV(UIVertex { bounds.max,                     0, drawAttr.strokeColor, { +1, +1, inner, 0 }, UIRender::CIRCLE });
-        //     batch.Tri(0, 1, 2);
-        //     batch.Tri(2, 0, 3);
-        // }
     }
 
     void Canvas::DrawEllipse(const Math::fv2& position, const Math::fv2& axis1, const Math::fv2& axis2) {
@@ -431,17 +480,7 @@ namespace Quasi::Graphics {
         Batch batch = NewBatch();
         batch.SetColor(tint);
         batch.SetTexture(subtex.tex->rendererID);
-
-        batch.SetTextureCoord(subtex.rect.min.x, subtex.rect.min.y);
-        batch.Point(rect.min);
-        batch.SetTextureCoord(subtex.rect.min.x, subtex.rect.max.y);
-        batch.Point({ rect.min.x, rect.max.y });
-        batch.SetTextureCoord(subtex.rect.max.x, subtex.rect.max.y);
-        batch.Point(rect.max);
-        batch.SetTextureCoord(subtex.rect.max.x, subtex.rect.min.y);
-        batch.Point({ rect.max.x, rect.min.y });
-
-        batch.Quad(0, 1, 2, 3);
+        DrawSimpleTexRect(batch, rect, subtex.rect);
     }
 
     void Canvas::DrawText(Str text, float fontSize, const Math::fv2& pos, const TextAlign& align) {
@@ -494,8 +533,10 @@ namespace Quasi::Graphics {
     }
 
     void Canvas::ShowHitboxes() {
+        Batch b = NewBatch();
+        b.SetColor({ 1, 0.1f });
         for (Ref i : interactables) {
-            DrawSimpleRect(i->hitbox, { 1, 0.1f });
+            DrawSimpleRect(b, i->hitbox);
         }
     }
 
@@ -932,14 +973,22 @@ namespace Quasi::Graphics {
         batch.Quad(1, 0, 4, 5);
     }
 
-    void Canvas::DrawSimpleRect(const Math::fRect2D& rect, const Math::fColor& color) {
-        Batch batch = NewBatch();
-        batch.SetColor(color);
-        batch.Point(rect.TopRight());
-        batch.Point(rect.TopLeft());
-        batch.Point(rect.BottomLeft());
-        batch.Point(rect.BottomRight());
-        batch.Quad(0, 1, 2, 3);
+    void Canvas::DrawSimpleRect(Batch& b, const Math::fRect2D& rect) {
+        b.Push(rect.TopRight());
+        b.Push(rect.TopLeft());
+        b.Push(rect.BottomLeft());
+        b.Push(rect.BottomRight());
+        b.Quad(0, 1, 2, 3);
+        b.offset += 4;
+    }
+
+    void Canvas::DrawSimpleTexRect(Batch& b, const Math::fRect2D& rect, const Math::fRect2D& uvRect) {
+        b.SetTextureCoord(uvRect.max.x, uvRect.max.y); b.Push(rect.TopRight());
+        b.SetTextureCoord(uvRect.min.x, uvRect.max.y); b.Push(rect.TopLeft());
+        b.SetTextureCoord(uvRect.min.x, uvRect.min.y); b.Push(rect.BottomLeft());
+        b.SetTextureCoord(uvRect.max.x, uvRect.min.y); b.Push(rect.BottomRight());
+        b.Quad(0, 1, 2, 3);
+        b.offset += 4;
     }
 
     void Canvas::DrawSimpleRoundedRect(const Math::fRect2D& outer, float radius, const Math::fColor& color) {
@@ -1506,12 +1555,64 @@ namespace Quasi::Graphics {
         return { *this };
     }
 
+    Canvas::DropShadowScope::DropShadowScope(Canvas& canvas, const Math::fv2& off, float r, const Math::fColor& color)
+        : canvas(canvas), offset(off), blurRadius(r), shadowColor(color) {
+        canvas.ForceDrawCurrentBatch(); // remove previous meshes
+    }
+
+    Canvas::DropShadowScope::~DropShadowScope() {
+        GL::Int prevFramebuff = 0;
+        GL::GetIntegerv(GL::DRAW_FRAMEBUFFER_BINDING, &prevFramebuff);
+
+        canvas.screenBuffer.BindDrawDest();
+        Render::Clear();
+        canvas.EndFrame();
+        GL::BindFramebuffer(GL::DRAW_FRAMEBUFFER, prevFramebuff);
+
+        // figure out mesh bounding box
+        Math::fRect2D bbox = Math::fRect2D::AntiDomain();
+        for (const auto& v : canvas.worldMesh.vertices) {
+            bbox.ExpandToFit(v.Position);
+        }
+        // just in case; without this the results look 'cropped'/'cut off' for some reason
+        static constexpr float PADDING = 2;
+        bbox.min -= PADDING;
+        bbox.max += PADDING;
+        const Math::fRect2D sbox = bbox.Extrude(blurRadius);
+
+        canvas.BeginFrame();
+        Batch batch = canvas.NewBatch();
+        batch.SetPrim(1);
+        batch.SetColor(shadowColor);
+        batch.SetUV(blurRadius, 0);
+        canvas.DrawSimpleTexRect(batch, sbox + offset, sbox.RelativeTo(canvas.viewport));
+
+        batch.SetPrim(0);
+        batch.SetColor(1);
+        canvas.DrawSimpleTexRect(batch, bbox, bbox.RelativeTo(canvas.viewport));
+
+        canvas.shaderShadowBlur.Bind();
+        canvas.shaderShadowBlur.SetUniformTex("sourceTex", canvas.screenTexture, 0);
+        canvas.EndFrame(canvas.shaderShadowBlur);
+
+        canvas.BeginFrame();
+    }
+
+    Canvas::DropShadowScope Canvas::BeginShadow(const Math::fv2& offset, float blurRadius, const Math::fColor& shadowColor) {
+        return { *this, offset, blurRadius, shadowColor };
+    }
+
     Math::fv2 Canvas::TransformToWorldSpace(const Math::fv2& point) const {
         return transform * point;
     }
 
-    void Canvas::SetViewport(const Math::fRect2D& viewport) {
-        renderCanvas.SetProjection(Math::Matrix3D::OrthoProjection(viewport.AddZ({ 0, 1 })));
+    void Canvas::SetViewport(const Math::fRect2D& vp) {
+        viewport = vp;
+        const Math::Matrix3D ortho = Math::Matrix3D::OrthoProjection(vp.AddZ({ 0, 1 }));
+        shaderStd.Bind();
+        shaderStd.SetUniformMat4x4("u_projection", ortho);
+        shaderShadowBlur.Bind();
+        shaderShadowBlur.SetUniformMat4x4("u_projection", ortho);
     }
 
     void Canvas::Update(float dt) {
@@ -1561,19 +1662,21 @@ namespace Quasi::Graphics {
     }
 
     void Canvas::BeginFrame() {
-        renderCanvas.BeginContext();
+        vbo.ClearData();
+        ibo.ClearData();
         worldMesh.Clear();
         usedTextures = 0;
     }
 
     void Canvas::EndFrame() {
-        renderCanvas->Add(worldMesh);
-        renderCanvas.EndContext();
+        EndFrame(shaderStd);
+    }
 
-        // GL::ActiveTexture(GL::TEXTURE0);
-        // TextureBase::BindObject(TextureTarget::_2D, textures[0]);
-        // GL::ActiveTexture(GL::TEXTURE1);
-        // TextureBase::BindObject(TextureTarget::_2D, textures[1]);
-        renderCanvas.DrawContext();
+    void Canvas::EndFrame(const Shader& alternateShader) {
+        if (worldMesh.indices.IsEmpty()) return;
+
+        vbo.AddData(worldMesh.vertices.AsSpan().AsConst());
+        ibo.AddData(worldMesh.indices.AsSpan());
+        Render::Draw(varray, ibo, alternateShader);
     }
 }

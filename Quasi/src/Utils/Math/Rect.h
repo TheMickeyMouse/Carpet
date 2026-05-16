@@ -31,7 +31,7 @@ namespace Quasi::Math {
         static Rect FromCenter(const VecT& center, const VecT& size) { return { center - size * 0.5f, center + size * 0.5f, Inclusive }; }
         static Rect Empty()      { return {}; }
         static Rect FullDomain() { return { NumInfo<T>::MIN, NumInfo<T>::MAX }; }
-        static Rect AntiDomain() { return { NumInfo<T>::MIN, NumInfo<T>::MAX }; }
+        static Rect AntiDomain() { return { NumInfo<T>::MAX, NumInfo<T>::MIN }; }
         static Rect On(const VecT& point) { return { point, point, Inclusive }; }
         static Rect Over(const Collection<VecT> auto& nums) {
             Rect r = AntiDomain();
@@ -101,7 +101,7 @@ namespace Quasi::Math {
         Rect RelativeTo(const VecT& offset) const { return { min - offset, max - offset }; }
         Rect RelativeTo(const Rect& other) const {
             const VecT m = (T)1 / other.Size();
-            return { (min - other.min) * m, (max - other.max) * m };
+            return { (min - other.min) * m, (max - other.min) * m };
         }
         Rect Scale(T scale)  const { return { min * scale, max * scale }; }
         Rect Scale(fT scale) const requires Integer<T> { return { (VecT)(min * scale), (VecT)(max * scale) }; }

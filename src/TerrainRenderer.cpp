@@ -59,7 +59,7 @@ void main() {
     if (zLayer == 11.0) {
         float dist = length(point.xy - actualLight.xy), sun = 1 - smoothstep(0, 0.4, dist);
         vec3 result = mix(fogYellow, vColor.rgb, smoothstep(0, 0.6, dist));
-        result *= (1 + 0.1 * sun);
+        result *= (1 + 0.1 * sun) * pow(16.0 * vUV.x * vUV.y * (1.0 - vUV.x) * (1.0 - vUV.y), 0.01);
         glColor = vec4(result, 1.0);
         return;
     }
@@ -72,6 +72,8 @@ void main() {
     vec3 dir = point - cameraSource;
     float dist = length(dir);
     vec3 result = applyFog(vColor.rgb, dist, dir / dist, normalize(actualLight - point));
+
+    result *= pow(16.0 * vUV.x * vUV.y * (1.0 - vUV.x) * (1.0 - vUV.y), 0.01);
 
     glColor = vec4(result, vColor.a);
 }

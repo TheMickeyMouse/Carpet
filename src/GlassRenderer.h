@@ -61,7 +61,7 @@ namespace Carpet {
         fv3 lightDirection = { 0.48f, 0.36f, 0.8f };
         fColor glassTint = { 1.0f, 1.0f, 1.0f, 0.0f };
 
-        float dropShadowRadius = 8.0f, dropShadowPow = 0.1f;
+        float dropShadowRadius = 3.0f, dropShadowPow = 0.1f;
         float mainShadowDist = 30.0f, mainShadowPow = 0.5f;
 
         enum TEXTURE_SLOTS {

@@ -34,6 +34,7 @@ namespace Carpet {
 
         font = Font::LoadFile("C:/Users/User/AppData/Local/Microsoft/Windows/Fonts/JetbrainsMono-Bold.ttf", 64);
         glassRenderer.BindFont(font);
+        canvas.SetFont(font);
     }
 
     bool App::Run() {
@@ -52,29 +53,52 @@ namespace Carpet {
             return false;
         }
 
+        anim = std::lerp(anim, gdevice.GetIO().MouseInWindow() ? 0.0 : 1.0, 0.13f);
+        const fv2 posBottom = anim * fv2 { 0, -600 }, posRight = anim * fv2 { 700, 0 }, posMid = anim * fv2 { 0, -160 };
+
         glassRenderer.BeginBackground();
         Render::Clear();
         terrainRenderer.Render(gdevice);
-        glassRenderer.EndBackground();
 
-        glassRenderer.DrawBox(fRect2D { { 730, 90 }, { 1190, 550 } } + pos, 30);
-        glassRenderer.DrawBox(fRect2D { { 1450, 120 }, { 1890, 1050 } } + pos, 30);
-        glassRenderer.DrawSegment(pos + fv2 { 1510, 60 }, pos + fv2 { 1830, 60 }, 30);
-
-        Debug::DateTime time = Debug::Timer::Now();
-        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), pos + fv2 { 960, 700 }, 180, 10.0f);
-
-        glassRenderer.Render();
-
-        canvas.SetFont(font);
         canvas.Stroke(0x2c313c_rgb);
-        canvas.DrawText("Welcome back!", 64, { 660, 700 }, { .alignment = TextAlign::CENTER, .rect = { 600, 10 } });
+        {
+            [[maybe_unused]] const auto shadow = canvas.BeginShadow(fv2 { 0, -3 }, 5, fColor { 0, 0.3f });
+            canvas.DrawText("Apps", 64, fv2 { 1670, 1000 } + posRight);
+        }
 
-        canvas.Stroke(0xeeeeee_rgb);
-        canvas.DrawText("Apps", 64, { 1670, 1000 });
+        {
+            [[maybe_unused]] const auto shadow = canvas.BeginShadow(fv2 { 0, -3 }, 7, fColor { 0, 0.3f });
+            canvas.DrawText("Welcome back!", 64, fv2 { 960, 700 } + posMid);
+        }
 
         canvas.Update(gdevice.GetIO().DeltaTime());
         canvas.EndFrame();
+
+        glassRenderer.EndBackground();
+
+        glassRenderer.DrawBox(fRect2D { { 730, 90 }, { 1190, 550 } } + posBottom, 30);
+        glassRenderer.DrawBox(fRect2D { { 1450, 120 }, { 1890, 1050 } } + posRight, 30);
+        glassRenderer.DrawSegment(posRight + fv2 { 1510, 60 }, posRight + fv2 { 1830, 60 }, 30);
+        Debug::DateTime time = Debug::Timer::Now();
+        time += std::chrono::hours(8); // utc offset
+        glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), posMid + fv2 { 960, 700 }, 180, 10.0f);
+
+        fv2 mouse = gdevice.GetIO().GetMousePos();
+        mouse *= fv2 { 1920, 1080 } / (fv2)gdevice.GetWindowSize();
+        mouse.y = 1080 - mouse.y;
+        bubblePos.LerpToward(mouse + fv2 { 6, -6 }, 0.2f); // offset to center at cursor
+        bubble = std::lerp(bubble, gdevice.GetIO().LeftMouse().Pressed() ? 50.0f : 30.0f, 0.12f);
+
+        // mimic an ellipse with 3 differently sized circles
+        fv2 delta = gdevice.GetIO().GetMousePosDelta().FlipY();
+        const auto [nd, speed] = !delta.IsZero() ? delta.NormAndLen() : Tuple { fv2(0), 0.0f };
+        const float ecc = std::min(0.15f, 0.02f * speed);
+        const float off = std::min(speed, bubble * 0.4f);
+        glassRenderer.DrawCirc(bubblePos + nd * off, bubble * (0.6 + ecc));
+        glassRenderer.DrawCirc(bubblePos - nd * off, bubble * (0.6 + ecc));
+        glassRenderer.DrawCirc(bubblePos, bubble * (1 - ecc));
+
+        glassRenderer.Render();
 
         showDebug ^= gdevice.GetIO()['H'].OnPress();
         if (showDebug) {
@@ -85,7 +109,6 @@ namespace Carpet {
             // glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
             // ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
-            ImGui::EditVector("Pos", pos);
             ImGui::EditRotation2D("Light", light);
             glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 

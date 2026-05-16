@@ -4,7 +4,7 @@
 int main() {
     Carpet::App carpet(
         // Sys::GetMonitorSize()
-        { 1280, 720 }
+        { 1536, 864 }
     );
     while (carpet.Run()) {}
     return 0;

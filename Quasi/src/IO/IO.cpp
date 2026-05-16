@@ -29,7 +29,6 @@ namespace Quasi::IO {
 
     void IO::AttachCallbacks(GLFWwindow* win) {
         glfwSetFramebufferSizeCallback(win, &OnGlfwFramebufferSizeCallback);
-        glfwSetCursorPosCallback      (win, &OnGlfwCursorMoveCallback);
         glfwSetMouseButtonCallback    (win, &OnGlfwMouseCallback);
         glfwSetScrollCallback         (win, &OnGlfwScrollCallback);
         glfwSetKeyCallback            (win, &OnGlfwKeyCallback);
@@ -55,6 +54,9 @@ namespace Quasi::IO {
     }
 
     void IO::UpdateCursorPos() {
+        double x, y;
+        glfwGetCursorPos(InputWindow(), &x, &y);
+        currMousePos = { (float)x, (float)y };
         mousePosDelta = currMousePos - prevMousePos;
         prevMousePos = currMousePos;
 
@@ -125,14 +127,6 @@ namespace Quasi::IO {
 
     void IO::OnGlfwFramebufferSizeCallback(GLFWwindow* window, int width, int height) {
         GetIOPtr(window)->gdevice->windowSize = { width, height };
-    }
-
-    void IO::OnGlfwCursorMoveCallback(GLFWwindow* window, double x, double y) {
-#ifndef Q_NO_IMGUI
-        ImGui_ImplGlfw_CursorPosCallback(window, x, y);
-#endif
-        IO& io = *GetIOPtr(window);
-        io.MoveCursor({ (float)x, (float)y });
     }
 
     void IO::OnGlfwMouseCallback(GLFWwindow* window, int mouse, int action, int mods) {

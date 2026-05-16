@@ -95,6 +95,13 @@ void main() {
      *          return vec3(z3 * H, H4, bevelRadius * H);
      *      }
      *      // pros: C2 continuous, cons: slow
+     *  - deg3 squircle:
+     *      vec3 height(float z) {
+     *          z = 1 - clamp(z / bevelRadius, 0, 1);
+     *          float z2 = z * z, H3 = 1 - z2 * z, H = pow(H3, 1.0 / 3.0);
+     *          return vec3(z2 * H, H3, bevelRadius * H);
+     *      }
+     *      // ehh idk
      */
 
     // also returns SDF in the alpha channel when negative :)

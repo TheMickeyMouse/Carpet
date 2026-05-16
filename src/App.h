@@ -16,7 +16,8 @@ namespace Carpet {
         GlassRenderer glassRenderer;
         TerrainRenderer terrainRenderer;
 
-        fv2 pos = {};
+        float anim = 1.0, bubble = 30.0f;
+        fv2 bubblePos = {};
         Rotor2D light = Degrees(60.0f);
         Font font;
         bool showDebug = true;
