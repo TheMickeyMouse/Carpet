@@ -13,16 +13,12 @@ namespace Carpet {
         distanceMap = Texture2D::New(nullptr, canvasSize, {
             .internalformat = TextureIFormat::RGB_32F, .type = TID::FLOAT,
         });
-        heightMap = Texture2D::New(nullptr, canvasSize, {
-            .internalformat = TextureIFormat::RGBA_32F, .type = TID::FLOAT,
-        });
 
         background = Texture2D::New(nullptr, canvasSize);
         backgroundGlass[0] = Texture2D::New(nullptr, canvasSize);
         backgroundGlass[1] = Texture2D::New(nullptr, canvasSize);
 
         fboSDF = FrameBuffer::With(distanceMap);
-        fboHeight = FrameBuffer::With(heightMap);
 
         rboBackground = RenderBuffer::New(TextureIFormat::DEPTH, canvasSize);
         fboBackground[0] = FrameBuffer::New();
@@ -33,18 +29,12 @@ namespace Carpet {
 
         render->shader = Shader::New(Shaders::SDFCalcVert, Shaders::SDFCalcFrag);
 
-        heightCalcShader = Shader::NewFragment(Shaders::HeightCalcFrag);
-        heightCalcShader.Bind();
-        heightCalcShader.SetUniformArgs({
-            { "disGraMap", distanceMap, SDFMAP }
-        });
-
         glassShader = Shader::NewFragment(Shaders::GlassFrag);
         glassShader.Bind();
         glassShader.SetUniformArgs({
             { "bgPlain",   background,         BACKGROUND },
             { "bgGlass",   backgroundGlass[0], BACKGROUND_GLASS_0 },
-            { "heightmap", heightMap,          HEIGHTMAP },
+            { "distanceMap", distanceMap,      SDFMAP },
         });
         backgroundGlass[1].Activate(BACKGROUND_GLASS_1);
         GL::ActiveTexture(GL::TEXTURE0);
@@ -209,19 +199,8 @@ namespace Carpet {
             .useDefaultArguments = false
         });
 
-        fboHeight.BindDrawDest();
         Render::DisableBlend();
-        heightCalcShader.Bind();
-        heightCalcShader.SetUniformFloat("bevelRadius", bevelRadius);
-        heightCalcShader.SetUniformFloat("strength", strength);
-
-        // Render::UseStencilTest(CmpOperation::EQUAL, 1);
-        // Render::UseStencilWriteOp(StencilOperation::KEEP);
-        // Render::DisableStencilWrite();
-        Render::DrawScreenQuad(heightCalcShader);
-
         FrameBuffer::UnbindDrawDest();
-        // Render::DisableStencil();
 
         mesh.Clear();
 
@@ -233,8 +212,9 @@ namespace Carpet {
         if (debugHeightmap) {
             heightVis.Bind();
             heightVis.SetUniformArgs({
-                { "heightmap",        HEIGHTMAP },
+                { "distanceMap",      SDFMAP },
                 { "bevelRadius",      bevelRadius },
+                { "smoothing",        strength },
                 { "showActualHeight", showActualHeight }
             });
             Render::DrawScreenQuad(heightVis);
@@ -247,8 +227,9 @@ namespace Carpet {
             { "lightSource", lightDirection },
             { "screenSize",  (fv2)canvasSize },
             { "eta",         eta },
-            { "height",      height },
+            { "glassHeight", height },
             { "bevelRadius", bevelRadius },
+            { "smoothing",   strength },
             { "glassTint",   glassTint },
             { "dropShadowRadius", dropShadowRadius },
             { "dropShadowPow",    dropShadowPow },
@@ -268,26 +249,27 @@ namespace Carpet {
         Render::DisableDepth();
 
         {
+            const float b5 = blurRadius / 5.0f, b25 = blurRadius / 25.0f;
             fboBackground[1].Bind();
             gaussBlurShader.Bind();
             gaussBlurShader.SetUniformInt("image", BACKGROUND);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 5, 0 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { b5, 0 });
             Render::DrawScreenQuad(gaussBlurShader);
 
             fboBackground[0].Bind();
             fboBackground[0].Attach(backgroundGlass[0]);
             gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 5 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, b5 });
             Render::DrawScreenQuad(gaussBlurShader);
 
             fboBackground[1].Bind();
             gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_0);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 1, 0 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { b25, 0 });
             Render::DrawScreenQuad(gaussBlurShader);
 
             fboBackground[0].Bind();
             gaussBlurShader.SetUniformInt("image", BACKGROUND_GLASS_1);
-            gaussBlurShader.SetUniformFv2("offsetDir", { 0, 1 });
+            gaussBlurShader.SetUniformFv2("offsetDir", { 0, b25 });
             Render::DrawScreenQuad(gaussBlurShader);
         }
     }

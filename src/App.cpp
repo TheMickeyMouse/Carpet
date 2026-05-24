@@ -8,7 +8,7 @@ namespace Carpet {
     App::App(const iv2& screenSize)
         : gdevice(GraphicsDevice::Initialize(screenSize, {
             .resizable = false,
-            // .decorated = false,
+            .decorated = false,
             .initalFocused = false,
             .floating = false,
             .transparent = true, .focusOnShow = false
@@ -20,14 +20,6 @@ namespace Carpet {
 
         canvas.SetViewport({ 0, { 1920, 1080 } });
 
-        // note to self: how to make decent glassy bgs:
-        // duplicate layer -> gaussian blur (r=25)
-        // if original layer is C, blurred layer is B
-        // then final image E = mix(B, B * C, 0.75)
-        // final gaussian blur (r=5) produces the final glass image
-
-        // assRenderer.background      = Texture2D::LoadPNG("../bg_day_plain.png");
-        // assRenderer.backgroundGlass = Texture2D::LoadPNG("../bg_day_glass.png");
         glassRenderer.bevelRadius = 25;
         glassRenderer.height = 80.0f;
         glassRenderer.lightDirection = fv3 { 4, 7, 10 };
@@ -53,7 +45,7 @@ namespace Carpet {
             return false;
         }
 
-        anim = std::lerp(anim, gdevice.GetIO().MouseInWindow() ? 0.0 : 1.0, 0.13f);
+        anim = std::lerp(anim, gdevice.GetIO().GetMousePos().IsIn({ 30, 30 }, { 1890, 1050 }) ? 0.0f : 1.0f, 0.13f);
         const fv2 posBottom = anim * fv2 { 0, -600 }, posRight = anim * fv2 { 700, 0 }, posMid = anim * fv2 { 0, -160 };
 
         glassRenderer.BeginBackground();
@@ -82,6 +74,7 @@ namespace Carpet {
         Debug::DateTime time = Debug::Timer::Now();
         time += std::chrono::hours(8); // utc offset
         glassRenderer.DrawText(font, Text::Format("{:%H:%m:%s}", time), posMid + fv2 { 960, 700 }, 180, 10.0f);
+        // glassRenderer.DrawText(font, "Welcome back!", posMid + fv2 { 960, 650 }, 64, 5.0f);
 
         fv2 mouse = gdevice.GetIO().GetMousePos();
         mouse *= fv2 { 1920, 1080 } / (fv2)gdevice.GetWindowSize();
@@ -94,8 +87,8 @@ namespace Carpet {
         const auto [nd, speed] = !delta.IsZero() ? delta.NormAndLen() : Tuple { fv2(0), 0.0f };
         const float ecc = std::min(0.15f, 0.02f * speed);
         const float off = std::min(speed, bubble * 0.4f);
-        glassRenderer.DrawCirc(bubblePos + nd * off, bubble * (0.6 + ecc));
-        glassRenderer.DrawCirc(bubblePos - nd * off, bubble * (0.6 + ecc));
+        glassRenderer.DrawCirc(bubblePos + nd * off, bubble * (0.6f + ecc));
+        glassRenderer.DrawCirc(bubblePos - nd * off, bubble * (0.6f + ecc));
         glassRenderer.DrawCirc(bubblePos, bubble * (1 - ecc));
 
         glassRenderer.Render();
@@ -106,8 +99,8 @@ namespace Carpet {
             ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
             if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
 
-            // glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
-            // ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
+            glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
+            ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
             ImGui::EditRotation2D("Light", light);
             glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
@@ -118,6 +111,8 @@ namespace Carpet {
             ImGui::EditScalar("Drop Pow",    glassRenderer.dropShadowPow,    0.05, fRange { 0, 1 });
             ImGui::EditScalar("Main Dist",   glassRenderer.mainShadowDist,   0.4,  fRange { 0, 50 });
             ImGui::EditScalar("Main Pow",    glassRenderer.mainShadowPow,    0.05, fRange { 0, 1 });
+            ImGui::EditScalar("Eta",         glassRenderer.eta,              0.01, fRange { 0, 1 });
+            ImGui::EditScalar("Blur Radius", glassRenderer.blurRadius, 0.5, fRange { 0, 25 });
 
             ImGui::Separator();
 
@@ -134,8 +129,6 @@ namespace Carpet {
 
             gdevice.DebugMenu();
         }
-
-        // ImGui::EditScalar("S", glassRenderer.S, 0.04, fRange { 0, 100 });
 
         gdevice.End();
         return gdevice.WindowIsOpen();

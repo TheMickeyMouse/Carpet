@@ -274,7 +274,7 @@ namespace Quasi::Math {
             for (usize i = 0; i < N; ++i) if (At(i) > other[i]) return false;
             return true;
         }
-        bool IsIn(const Super& min, const Super& max) const { return ALlGreater(min) && AllLess(max); }
+        bool IsIn(const Super& min, const Super& max) const { return AllGreater(min) && AllLess(max); }
         bool IsIn(const Rect<T, N>& rect) const;
 
         static Super Random(RandomGenerator& rand);

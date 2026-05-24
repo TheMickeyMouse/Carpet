@@ -34,13 +34,13 @@ namespace Carpet {
             }
         };
 
-        FrameBuffer fboSDF, fboHeight;
-        Texture2D distanceMap, heightMap;
+        FrameBuffer fboSDF;
+        Texture2D distanceMap;
         iv2 canvasSize;
 
         RenderObject<Vtx> render;
         Mesh<Vtx> mesh;
-        Shader heightCalcShader, glassShader;
+        Shader glassShader;
         Shader gaussBlurShader;
 
 #ifndef NDEBUG
@@ -63,14 +63,13 @@ namespace Carpet {
 
         float dropShadowRadius = 3.0f, dropShadowPow = 0.1f;
         float mainShadowDist = 30.0f, mainShadowPow = 0.5f;
+        float blurRadius = 25.0f;
 
         enum TEXTURE_SLOTS {
-            BACKGROUND = 4, BACKGROUND_GLASS_0, BACKGROUND_GLASS_1, HEIGHTMAP, SDFMAP, FONT_SDF
+            BACKGROUND = 4, BACKGROUND_GLASS_0, BACKGROUND_GLASS_1, SDFMAP, FONT_SDF
         };
     public:
         GlassRenderer(GraphicsDevice& gd);
-
-        Texture2D& GetHeightmap() { return heightMap; }
 
         float GetPadding() const;
         void SetSmoothing(float strength);
