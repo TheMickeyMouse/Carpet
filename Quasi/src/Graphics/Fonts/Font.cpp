@@ -115,10 +115,19 @@ namespace Quasi::Graphics {
         return glyphs[c - 32];
     }
 
+    float Font::SpaceWidth() const {
+        return GetGlyphRect(' ').advance.x;
+    }
+
+    float Font::CalcCharWidth(char c) const {
+        if (Chr::IsWhitespace(c)) c = ' ';
+        return GetGlyphRect(c).advance.x;
+    }
+
     float Font::CalcTextWidth(Str text) const {
         float width = 0;
         for (const char c : text) {
-            width += GetGlyphRect(c).advance.x;
+            width += CalcCharWidth(c);
         }
         return width;
     }

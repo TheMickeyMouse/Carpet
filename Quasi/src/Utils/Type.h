@@ -42,13 +42,11 @@ namespace Quasi {
 	template <class T> concept IsConstPtr  = IsPtr<T> && IsConst<RemPtr<T>>;
 	template <class T> concept IsMutRef    = IsRef<T> && IsMut<RemRef<T>>;
 	template <class T> concept IsMutPtr    = IsPtr<T> && IsMut<RemPtr<T>>;
-	template <class T> using   RemConstRef = RemRef<RemConst<T>>;
-	template <class T> using   RemConstPtr = RemPtr<RemConst<T>>;
-	template <class T> using   RemMutRef   = RemRef<T>;
-	template <class T> using   RemMutPtr   = RemPtr<T>;
+	template <class T> using   RemCRef     = RemConst<RemRef<T>>;
+	template <class T> using   RemCPtr     = RemConst<RemPtr<T>>;
 
 	template <class T> using   ToConstRef  = const RemRef<T>&;
-	template <class T> using   ToMutRef    = RemConstRef<T>&;
+	template <class T> using   ToMutRef    = RemCRef<T>&;
 	template <class T> const T& AsConst(T&& x) { return x; }
 
 	template <class T> using   RemQual = std::remove_cvref_t<T>;

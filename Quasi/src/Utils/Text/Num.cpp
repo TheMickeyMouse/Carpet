@@ -5,12 +5,12 @@
 
 namespace Quasi::Text {
     bool NumberConversion::AreAllHexDigits4(u32 digits) {
-        const u32 aLo = Bitwise::Add4Bytes(digits, 0x7F7F7F7F - "9999"_u32),
-                  aHi = Bitwise::Add4Bytes(digits,            - "0000"_u32),
-                  bLo = Bitwise::Add4Bytes(digits, 0x7F7F7F7F - "FFFF"_u32),
-                  bHi = Bitwise::Add4Bytes(digits,            - "AAAA"_u32),
-                  cLo = Bitwise::Add4Bytes(digits, 0x7F7F7F7F - "ffff"_u32),
-                  cHi = Bitwise::Add4Bytes(digits,            - "aaaa"_u32);
+        const u32 aLo = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(127 - '9')),
+                  aHi = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(256 - '0')),
+                  bLo = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(127 - 'F')),
+                  bHi = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(256 - 'A')),
+                  cLo = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(127 - 'f')),
+                  cHi = Bitwise::Add4Bytes(digits, 0x01010101U * (u8)(256 - 'a'));
         return (((aLo | aHi) & (bLo | bHi) & (cLo | cHi)) & 0x8080'8080) == 0;
     }
 

@@ -50,6 +50,8 @@ namespace Quasi::Graphics {
         //     const TextAlign& align = { { 0, f32s::INFINITY } }
         // ) const;
 
+        float SpaceWidth() const;
+        float CalcCharWidth(char c) const;
         float CalcTextWidth(Str text) const;
         
         Texture2D& GetTexture() { return atlas; }

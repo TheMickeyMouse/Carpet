@@ -21,6 +21,7 @@ namespace Quasi {
         Span(T* dat, usize len) : data(dat), size(len) {}
     public:
         Span() : data(nullptr), size(0) {}
+        Span(Nullptr) : data(nullptr), size(0) {}
         template <usize N>
         Span(T (&arr)[N]) : data(arr), size(N) {}
         template <Continuous<RemConst<T>> Coll>

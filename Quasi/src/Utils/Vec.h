@@ -198,10 +198,12 @@ namespace Quasi {
         }
 
         void Extend(Collection<T> auto&& items) {
-            // if constexpr (ArrayLike<decltype(items)>) {
-            //     TryGrow(items.Length());
-            // }
-            for (auto&& i : items) { Push(std::forward<decltype(i)>(i)); }
+            if constexpr (ContinuousAny<decltype(items)>) {
+                TryGrow(items.Length());
+            }
+            for (auto&& i : items) {
+                this->Push((decltype(i))i);
+            }
         }
         void ExtendMove(Span<T> items)   { TryGrow(items.Length()); for (T& i : items) Push(i); }
         void Extend(Span<const T> items) { TryGrow(items.Length()); for (const T& i : items) Push(i); }

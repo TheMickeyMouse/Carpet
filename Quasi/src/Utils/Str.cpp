@@ -175,7 +175,7 @@ namespace Quasi {
     strdef Tuple<Str, Str>              strcls::SplitAt(usize at)     const { return { First(at), Skip(at + 1) }; }
     strdef Tuple<Str, const char&, Str> strcls::PartitionAt(usize at) const { return { First(at), At(at), Skip(at + 1) }; }
 
-    strdef Tuple<Str, Str> strcls::SplitOnce(char c)  const { return SplitAt(Find(c).UnwrapOr(this->Length())); }
+    strdef Tuple<Str, Str> strcls::SplitOnce(char c)  const { const OptionUsize i = Find(c); return i ? SplitAt(*i) : Tuple { AsStr(), Str {} }; }
     strdef Tuple<Str, Str> strcls::SplitOnce(Str sep) const { const OptionUsize i = Find(sep); if (i) return { First(*i), Skip(*i + sep.Length()) }; else return { *this, {} }; }
 
     strdef bool strcls::RefEquals     (Str other) const { return this->Data() == other.Data() && this->Length() == other.Length(); }

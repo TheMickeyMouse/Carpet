@@ -68,6 +68,7 @@ namespace Quasi::Debug {
 
     public:
         static Logger InternalLog;
+        static Logger NulLog;
 #ifdef NDEBUG
         static constexpr bool DEBUG = false;
 #else

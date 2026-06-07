@@ -1,0 +1,22 @@
+Widget {
+    width: 700;
+    height: 500;
+    borderRadius: 20;
+    padding: 5;
+    Text {
+        text: "What's the matter? \tHe said: \"why hello,,,\"   lemme test  out this word wrap feature rq...";
+        padding: 30;
+        margin: 30;
+        width: 300;
+        height: 100;
+        fontSize: 19;
+        background: #fff8;
+    }
+    Text {
+        text: "Line two!";
+        padding: 30;
+        fontSize: 19;
+        color: #f00;
+        background: #faa8;
+    }
+}

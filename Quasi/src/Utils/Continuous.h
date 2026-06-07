@@ -16,17 +16,36 @@ namespace Quasi {
         friend IIterator<T, BufferIterator>;
         using Item = T;
         using Ptr = RemRef<T>*;
-        Ptr iter, end;
-        BufferIterator(Ptr beg, Ptr end) : iter(beg), end(end) {}
+        Ptr iter, endIter;
+        BufferIterator(Ptr beg, Ptr end) : iter(beg), endIter(end) {}
     protected:
         T CurrentImpl() const {
             if constexpr (!IsRef<T>) return std::move(*iter);
             else return *iter;
         }
         void AdvanceImpl() { ++iter; }
-        bool CanNextImpl() const { return iter != end; }
+        bool CanNextImpl() const { return iter != endIter; }
     public:
         bool operator==(const BufferIterator& it) const { return iter == it.iter; }
+    };
+
+    template <class T>
+    struct RevBufferIterator : IIterator<T, RevBufferIterator<T>> {
+        friend IIterator<T, RevBufferIterator>;
+        using Item = T;
+        using Ptr = RemRef<T>*;
+        Ptr iter, endIter;
+        RevBufferIterator(Ptr beg, Ptr end) : iter(beg), endIter(end) {}
+    protected:
+        T CurrentImpl() const {
+            if constexpr (!IsRef<T>) return std::move(*iter);
+            else return *iter;
+        }
+        void AdvanceImpl() { --iter; }
+        bool CanNextImpl() const { return iter != endIter; }
+    public:
+        bool operator==(const RevBufferIterator& it) const { return iter == it.iter; }
+        bool operator==(const BufferIterator<T>& it) const { return iter == it.iter; }
     };
 
     template <class T, class Super>
@@ -42,15 +61,19 @@ namespace Quasi {
         const T* DataImpl() const = delete;
         usize  LengthImpl() const = delete;
 
-        BufferIterator<T&>       IterMutImpl()       { return { Data(), Data() + Length() }; }
-        BufferIterator<const T&> IterImpl()    const { return { Data(), Data() + Length() }; }
-        BufferIterator<T>        IntoIterImpl()      { return { Data(), Data() + Length() }; }
+        BufferIterator<T&>       IterMutImpl()    { return { Data(), Data() + Length() }; }
+        BufferIterator<const T&> IterImpl() const { return { Data(), Data() + Length() }; }
+        BufferIterator<T>        IntoIterImpl()   { return { Data(), Data() + Length() }; }
     public:
         T*       Data()       { return super().DataImpl(); }
         const T* Data() const { return super().DataImpl(); }
         T*       DataEnd()       { return super().DataImpl() + super().LengthImpl(); }
         const T* DataEnd() const { return super().DataImpl() + super().LengthImpl(); }
         usize Length() const { return super().LengthImpl(); }
+
+        RevBufferIterator<T&>       RevIterMut()    { return { Data() + Length() - 1, Data() - 1 }; }
+        RevBufferIterator<const T&> RevIter() const { return { Data() + Length() - 1, Data() - 1 }; }
+        RevBufferIterator<T>        RevIntoIter()   { return { Data() + Length() - 1, Data() - 1 }; }
 
         SpanCn AsSpan() const { return Span(super()); }
         SpanMt AsSpan() { return Span(super()); }

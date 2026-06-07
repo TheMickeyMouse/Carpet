@@ -68,6 +68,7 @@ namespace Quasi::Graphics {
         u32 usedTextures = 0;
     public:
         Math::Transform2D transform;
+        bool flipText = false;
 
         Canvas();
         Canvas(GraphicsDevice& gd);
@@ -111,6 +112,7 @@ namespace Quasi::Graphics {
         void DrawSTextureH (const SubTexture& subtex, const Math::fv2& pos, float h, bool center = true, const Math::fColor& tint = 1);
         void DrawSTextureEx(const SubTexture& subtex, const Math::fRect2D& rect, const Math::fColor& tint = 1);
 
+        // pos = bottom left corner of text, align.rect = box extending to the top-right corner
         void DrawText(Str text, float fontSize, const Math::fv2& pos, const TextAlign& align = {});
 
         void ShowHitboxes();
@@ -270,6 +272,7 @@ namespace Quasi::Graphics {
 
         Math::fv2 TransformToWorldSpace(const Math::fv2& point) const;
         void SetViewport(const Math::fRect2D& vp);
+        void FlipYDirection();
 
         void Update(float dt);
         void AddInteractable(Ref<Interactable> inter);

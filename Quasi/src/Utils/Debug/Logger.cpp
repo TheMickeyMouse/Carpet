@@ -18,6 +18,8 @@ namespace Quasi::Debug {
         return log;
     }();
 
+    Logger Logger::NulLog = Logger { Text::StringWriter::NoWrite() };
+
     Logger& Logger::GetInternalLog() {
         return InternalLog;
     }

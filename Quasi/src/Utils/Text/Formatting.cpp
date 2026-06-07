@@ -15,13 +15,15 @@ namespace Quasi::Text {
         while (i < fmt.Length()) {
             const char c = fmt[i];
             if (c != '{' && c != '}') { ++i; continue; }
+
+            writeLen += output.Write(fmt.Substr(prev, i - prev));
+
             if (i + 1 < fmt.Length() && fmt[i + 1] == c) {
                 writeLen += output.Write(c);
                 i = (prev = i + 2);
                 continue;
             }
 
-            writeLen += output.Write(fmt.Substr(prev, i - prev));
             // '{'
             Debug::QAssert$(c == '{', "formatting string {:?} is ill-formed", fmt);
             usize p = 0, q = 0;

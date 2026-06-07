@@ -114,11 +114,7 @@ namespace Quasi {
         }
 
         template <BaseOf<T> Base> Box<Base> Upcast() {
-            Base* dyn = Memory::DynCastPtr<Base>(data);
-            if (dyn) {
-                (void)Release();
-                return Box<Base>::Own(dyn);
-            } else return nullptr;
+            return Box<Base>::Own(Release());
         }
 
         template <class U>

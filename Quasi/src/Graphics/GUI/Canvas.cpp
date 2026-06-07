@@ -86,12 +86,12 @@ namespace Quasi::Graphics {
             "    switch (prim) {"
             "        case 1: {"
             "            float dist = 1 - length(vSTUV.xy);"
-            "            color.a = clamp(0.5 + dist / fwidth(dist), 0.0, 1.0);"
+            "            color.a *= clamp(0.5 + dist / fwidth(dist), 0.0, 1.0);"
             "            break;"
             "        }"
             "        case 2: {"
             "            float dist = (1 - vSTUV.z) * 0.5f - abs(length(vSTUV.xy) - (vSTUV.z + 1) * 0.5);"
-            "            color.a = clamp(0.5 + dist / fwidth(dist), 0.0, 1.0);"
+            "            color.a *= clamp(0.5 + dist / fwidth(dist), 0.0, 1.0);"
             "            break;"
             "        }"
             // "        case 3: {"
@@ -111,7 +111,7 @@ namespace Quasi::Graphics {
             "        case 6: {"
             "           float distance = texture(u_textures[vRenderPrim >> 8], vSTUV.xy).r - 0.5;"
             "           float ds = fwidth(distance);"
-            "           color.a = clamp(0.5 + distance / ds, 0.0, 1.0);"
+            "           color.a *= clamp(0.5 + distance / ds, 0.0, 1.0);"
             "           break;"
             "        }"
             "    }"
@@ -497,26 +497,94 @@ namespace Quasi::Graphics {
 
         Math::fv2 pen = pos;
 
-        // i actually have no idea why this is needed. but somehow by some miracle it works.
-        // pray to god next time you have to refactor this.
-        pen.y -= (float)font.GetMetric().descend * pointScale;
-        const float totalHeight = (float)font.GetMetric().fontHeight * pointScale * ((float)((int)text.CountLines() - 1) * align.lineSpacing + 1);
-        switch (align.alignment & TextAlign::VMASK) {
-            case TextAlign::VTOP: break;
-            case TextAlign::VCENTER: pen.y -= 0.5f * (align.rect.y - totalHeight); break;
-            case TextAlign::VBOTTOM: pen.y -= align.rect.y - totalHeight; break;
-            default:;
+        // ----------- ascender line             --> pen.y is here (when flipText=true)   +Y (Y up when flipText=false)
+        //                                                                                /\  ||
+        // ----------- baseline                  --> want to be here                      ||  ||
+        // ----------- descender line (negative) --> pen.y is here (when flipText=false)  ||  \/ (Y down when flipText=true)
+
+        if (!flipText) {
+            pen.y -= (float)font.GetMetric().descend * pointScale;
+        } else {
+            pen.y += (float)font.GetMetric().ascend * pointScale;
+        }
+
+        struct Line {
+            Str line;
+            float width;
+        };
+        Vec<Line> lineBreaks;
+        // words should include the whitespace before it, i.e.
+        // The, quick brown-fox  jumped! over the   lazy "dog".
+        // [--][----][--------][-------][---][--][-----][-----]
+        // the edges of these words will be tested for wrapping.
+        float lineWidth = 0.0f, wordWidth = 0.0f;
+        usize lineBeg = 0, wordBeg = 0;
+        for (usize i = 0; i < text.Length(); i++) {
+            const char c = text[i];
+            if (c == '\n') {
+                const Str line = text.Substr(lineBeg, i - lineBeg);
+                lineBreaks.Push({ line, font.CalcTextWidth(line) * relativeFontSize });
+                lineBeg = i + 1;
+                wordWidth = 0.0f;
+                continue;
+            }
+            if (!(align.alignment & TextAlign::WORD_WRAP)) continue;
+            // the following only detects word wraps
+
+            if (Chr::IsWhitespace(c)) { // end of the word
+                if (lineWidth + wordWidth > align.rect.x) {
+                    lineBreaks.Push({ text.Substr(lineBeg, wordBeg - lineBeg), lineWidth });
+                    i = wordBeg;
+                    lineWidth = 0.0;
+
+                    // make sure the beginning of a line ISN'T whitespace
+                    while (Chr::IsWhitespace(text[++i])) {}
+                    lineBeg = wordBeg = i;
+                    wordWidth = font.CalcCharWidth(text[i]) * relativeFontSize;
+                    --i;
+                    continue;
+                } else {
+                    lineWidth += wordWidth;
+                    wordWidth = 0.0f;
+                    wordBeg = i;
+                    // dont make consecutive spaces count as separate words
+                    while (Chr::IsWhitespace(text[++i])) {}
+                    --i;
+                }
+            }
+            wordWidth += font.CalcCharWidth(c) * relativeFontSize;
+        }
+        {
+            const Str lastLine = text.Substr(lineBeg);
+            lineBreaks.Push({ lastLine, font.CalcTextWidth(lastLine) * relativeFontSize });
+        }
+
+        const float totalHeight = (float)font.GetMetric().fontHeight * pointScale * ((float)(lineBreaks.Length() - 1) * align.lineSpacing + 1);
+
+        if (!flipText) {
+            switch (align.alignment & TextAlign::VMASK) {
+                case TextAlign::VTOP:    pen.y += align.rect.y - totalHeight; break;
+                case TextAlign::VCENTER: pen.y += 0.5f * (align.rect.y - totalHeight); break;
+                case TextAlign::VBOTTOM: break;
+                default:;
+            }
+        } else {
+            switch (align.alignment & TextAlign::VMASK) {
+                case TextAlign::VTOP:    break;
+                case TextAlign::VCENTER: pen.y += 0.5f * (align.rect.y - totalHeight); break;
+                case TextAlign::VBOTTOM: pen.y += align.rect.y - totalHeight; break;
+                default:;
+            }
         }
 
         const u32 horizontalAlignment = align.alignment & TextAlign::ALIGN_MASK;
-        for (const Str line : text.Split("\n")) {
-            pen.y -= lineHeight;
 
+        usize i = 0;
+        for (const auto [line, width] : lineBreaks) {
             float beginOffset = 0;
             switch (horizontalAlignment) {
                 case TextAlign::RIGHT: case TextAlign::CENTER: {
-                    const float lineWidth = font.CalcTextWidth(line) * relativeFontSize;
-                    beginOffset = (align.rect.x - lineWidth) * (horizontalAlignment == TextAlign::CENTER ? 0.5f : 1.0f);
+                    beginOffset = (align.rect.x - width) * (horizontalAlignment == TextAlign::CENTER ? 0.5f : 1.0f);
                     [[fallthrough]];
                 }
                 case TextAlign::LEFT: {
@@ -524,11 +592,17 @@ namespace Quasi::Graphics {
                     break;
                 }
                 case TextAlign::JUSTIFY: {
-                    DrawTextJustify(batch, line, relativeFontSize, pen, align.letterSpacing, align.rect.x, font);
+                    if (i == lineBreaks.Length() - 1) {
+                        DrawTextLine(batch, line, relativeFontSize, pen, align.letterSpacing, font);
+                    } else {
+                        DrawTextJustify(batch, line, relativeFontSize, pen, align.letterSpacing, align.rect.x, font);
+                    }
                     break;
                 }
                 default:;
             }
+            pen.y += flipText ? lineHeight : -lineHeight;
+            ++i;
         }
     }
 
@@ -721,18 +795,26 @@ namespace Quasi::Graphics {
     float Canvas::Batch::PushGlyph(const Glyph& glyph, float scaling, const Math::fv2& position, const Texture2D& atlas) {
         const Math::fv2 rsize = glyph.rect.Size() * (Math::fv2)atlas.Size(); // real-scale size of the quad
         const Math::fRect2D uv = glyph.rect;
-        const Math::fv2 start = (Math::fv2)glyph.offset * scaling + position,
-                        dim   = rsize * scaling;
+        Math::fv2 start = (Math::fv2)glyph.offset * scaling + position,
+                  dim   = rsize * scaling;
+        const bool flip = canvas.flipText;
+
+        float yBtm = start.y, yTop = start.y - dim.y;
+        if (flip) {
+            // std::swap(uvTop, uvBottom);
+            yBtm = 2 * position.y - start.y;
+            yTop = yBtm + dim.y;
+        }
 
         SetSDF(atlas.rendererID);
         SetUV(uv.min.x, uv.min.y);
-        Push({ start.x,         start.y });
+        Push({ start.x,         yBtm });
         SetUV(uv.max.x, uv.min.y);
-        Push({ start.x + dim.x, start.y });
+        Push({ start.x + dim.x, yBtm });
         SetUV(uv.max.x, uv.max.y);
-        Push({ start.x + dim.x, start.y - dim.y });
+        Push({ start.x + dim.x, yTop });
         SetUV(uv.min.x, uv.max.y);
-        Push({ start.x,         start.y - dim.y });
+        Push({ start.x,         yTop });
         Quad(0, 1, 2, 3);
 
         Reload();
@@ -1516,11 +1598,17 @@ namespace Quasi::Graphics {
     }
 
     void Canvas::Fill(const Math::fColor& fillColor) {
+        if (fillColor == Math::fColor::Clear()) {
+            return NoFill();
+        }
         drawAttr.fillColor = fillColor;
         drawAttr.drawStyle &= ~UIRender::NO_FILL;
     }
 
     void Canvas::Stroke(const Math::fColor& strokeColor) {
+        if (strokeColor == Math::fColor::Clear()) {
+            return NoStroke();
+        }
         drawAttr.strokeColor = strokeColor;
         drawAttr.drawStyle &= ~UIRender::NO_STROKE;
     }
@@ -1613,6 +1701,11 @@ namespace Quasi::Graphics {
         shaderStd.SetUniformMat4x4("u_projection", ortho);
         shaderShadowBlur.Bind();
         shaderShadowBlur.SetUniformMat4x4("u_projection", ortho);
+    }
+
+    void Canvas::FlipYDirection() {
+        SetViewport({ { viewport.min.x, viewport.max.y }, { viewport.max.x, viewport.min.y } });
+        flipText ^= true;
     }
 
     void Canvas::Update(float dt) {

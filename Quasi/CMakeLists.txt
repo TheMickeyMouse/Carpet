@@ -115,6 +115,7 @@ set(HEADER_FILES
     src/vendor/imgui/imgui_stdlib.h
 
     src/vendor/stb_image/stb_image.h
+        src/Utils/PolyVec.h
 )
 source_group("Header Files" FILES ${HEADER_FILES})
 
@@ -217,6 +218,7 @@ set(ALL_FILES
         src/Utils/Math/Rotor3D.h
         src/Utils/Math/Rotor3D.cpp
         src/Utils/Math/Packed.h
+        src/Utils/PolyVec.h
 )
 
 add_library(${PROJECT_NAME} STATIC ${ALL_FILES})
@@ -262,6 +264,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     -Wno-missing-field-initializers # allows not initializing certain fields
     -Wno-dangling-reference # too many false-positives, especially for my Ref<T> class.
     -Wno-unused-parameter # it's simply too annoying.
+    -Wimplicit-fallthrough # surprisingly common in switch statements
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC

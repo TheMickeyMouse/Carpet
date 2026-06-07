@@ -19,6 +19,7 @@ namespace Carpet {
         Instance = *this;
 
         canvas.SetViewport({ 0, { 1920, 1080 } });
+        canvas.FlipYDirection();
 
         glassRenderer.bevelRadius = 25;
         glassRenderer.height = 80.0f;
@@ -27,6 +28,9 @@ namespace Carpet {
         font = Font::LoadFile("C:/Users/User/AppData/Local/Microsoft/Windows/Fonts/JetbrainsMono-Bold.ttf", 64);
         glassRenderer.BindFont(font);
         canvas.SetFont(font);
+
+        uidoc.Compile(Text::ReadFile("../test.txt").Assert(), Debug::Logger::GetInternalLog());
+        uidoc.ComputeLayouts();
     }
 
     bool App::Run() {
@@ -45,6 +49,31 @@ namespace Carpet {
             return false;
         }
 
+        // DrawVisuals();
+        {
+            glassRenderer.BeginBackground();
+            Render::Clear();
+            terrainRenderer.Render(gdevice);
+            glassRenderer.EndBackground();
+        }
+        uidoc.DrawGlass(glassRenderer);
+        glassRenderer.Render();
+
+        canvas.BeginFrame();
+        uidoc.Draw(canvas);
+        canvas.Update(gdevice.GetIO().DeltaTime());
+        canvas.EndFrame();
+
+        showDebug ^= gdevice.GetIO()['H'].OnPress();
+        if (showDebug) {
+            ShowDebug();
+        }
+
+        gdevice.End();
+        return gdevice.WindowIsOpen();
+    }
+
+    void App::DrawVisuals() {
         anim = std::lerp(anim, gdevice.GetIO().GetMousePos().IsIn({ 30, 30 }, { 1890, 1050 }) ? 0.0f : 1.0f, 0.13f);
         const fv2 posBottom = anim * fv2 { 0, -600 }, posRight = anim * fv2 { 700, 0 }, posMid = anim * fv2 { 0, -160 };
 
@@ -92,45 +121,42 @@ namespace Carpet {
         glassRenderer.DrawCirc(bubblePos, bubble * (1 - ecc));
 
         glassRenderer.Render();
+    }
 
-        showDebug ^= gdevice.GetIO()['H'].OnPress();
-        if (showDebug) {
-            float s = glassRenderer.GetSmoothingStrength();
-            ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
-            if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
+    void App::ShowDebug() {
+        float s = glassRenderer.GetSmoothingStrength();
+        ImGui::EditScalar("smoothing", s, 0.01, fRange { 1, 10 });
+        if (s != glassRenderer.GetSmoothingStrength()) glassRenderer.SetSmoothing(s);
 
-            glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
-            ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
+        glassRenderer.debugHeightmap ^= ImGui::Button("View Heightmap");
+        ImGui::Checkbox("Show Actual Height", &glassRenderer.showActualHeight);
 
-            ImGui::EditRotation2D("Light", light);
-            glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
+        ImGui::EditRotation2D("Light", light);
+        glassRenderer.lightDirection = fv3::FromSpheric(1.0, light, Degrees(60.0f))["xzy"];
 
-            ImGui::EditColor("Tint", glassRenderer.glassTint);
+        ImGui::EditColor("Tint", glassRenderer.glassTint);
 
-            ImGui::EditScalar("Drop Radius", glassRenderer.dropShadowRadius, 0.2,  fRange { 0, 10 });
-            ImGui::EditScalar("Drop Pow",    glassRenderer.dropShadowPow,    0.05, fRange { 0, 1 });
-            ImGui::EditScalar("Main Dist",   glassRenderer.mainShadowDist,   0.4,  fRange { 0, 50 });
-            ImGui::EditScalar("Main Pow",    glassRenderer.mainShadowPow,    0.05, fRange { 0, 1 });
-            ImGui::EditScalar("Eta",         glassRenderer.eta,              0.01, fRange { 0, 1 });
-            ImGui::EditScalar("Blur Radius", glassRenderer.blurRadius, 0.5, fRange { 0, 25 });
+        ImGui::EditScalar("Drop Radius", glassRenderer.dropShadowRadius, 0.2,  fRange { 0, 10 });
+        ImGui::EditScalar("Drop Pow",    glassRenderer.dropShadowPow,    0.05, fRange { 0, 1 });
+        ImGui::EditScalar("Main Dist",   glassRenderer.mainShadowDist,   0.4,  fRange { 0, 50 });
+        ImGui::EditScalar("Main Pow",    glassRenderer.mainShadowPow,    0.05, fRange { 0, 1 });
+        ImGui::EditScalar("Eta",         glassRenderer.eta,              0.01, fRange { 0, 1 });
+        ImGui::EditScalar("Blur Radius", glassRenderer.blurRadius, 0.5, fRange { 0, 25 });
+        ImGui::EditScalar("Bevel Radius", glassRenderer.bevelRadius, 1, fRange { 0, 100 });
 
-            ImGui::Separator();
+        ImGui::Separator();
 
-            ImGui::EditScalar("Fog Falloff", terrainRenderer.fogFalloff, 0.03, fRange { 0, 3 });
-            ImGui::EditColor("Fog Blue", terrainRenderer.fogBlue);
-            ImGui::EditColor("Fog Yellow", terrainRenderer.fogYellow);
-            ImGui::EditVector("Light Source", terrainRenderer.lightSource, 0.05);
-            ImGui::EditVector("Camera", terrainRenderer.cameraSource, 0.05);
-            ImGui::EditScalar("Z Offset", terrainRenderer.zOffset, 0.03);
-            ImGui::EditScalar("X Offset", terrainRenderer.xOffset, 0.03);
-            ImGui::EditScalar("Y Offset", terrainRenderer.yOffset, 0.001);
-            ImGui::EditScalar("Steepness", terrainRenderer.steepness, 0.01);
-            ImGui::EditScalar("Slope Z",   terrainRenderer.slopeZ,    0.01);
+        ImGui::EditScalar("Fog Falloff", terrainRenderer.fogFalloff, 0.03, fRange { 0, 3 });
+        ImGui::EditColor("Fog Blue", terrainRenderer.fogBlue);
+        ImGui::EditColor("Fog Yellow", terrainRenderer.fogYellow);
+        ImGui::EditVector("Light Source", terrainRenderer.lightSource, 0.05);
+        ImGui::EditVector("Camera", terrainRenderer.cameraSource, 0.05);
+        ImGui::EditScalar("Z Offset", terrainRenderer.zOffset, 0.03);
+        ImGui::EditScalar("X Offset", terrainRenderer.xOffset, 0.03);
+        ImGui::EditScalar("Y Offset", terrainRenderer.yOffset, 0.001);
+        ImGui::EditScalar("Steepness", terrainRenderer.steepness, 0.01);
+        ImGui::EditScalar("Slope Z",   terrainRenderer.slopeZ,    0.01);
 
-            gdevice.DebugMenu();
-        }
-
-        gdevice.End();
-        return gdevice.WindowIsOpen();
+        gdevice.DebugMenu();
     }
 }

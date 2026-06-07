@@ -22,6 +22,10 @@ namespace Quasi::Text {
         return WriteToFile(stderr);
     }
 
+    StringWriter StringWriter::NoWrite() {
+        return { FuncRefs::FromRaw(nullptr, +[] (void*, Str) {}) };
+    }
+
     void StringWriter::StringWriteCallback(void* s, Str str) {
         ((String*)s)->AppendStr(str);
     }

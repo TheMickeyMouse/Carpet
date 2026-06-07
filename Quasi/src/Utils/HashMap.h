@@ -82,18 +82,18 @@ namespace Quasi {
                 }
             }
         private:
-            static LinkedListPtr& Next(LinkedListPtr list) {
+            static LinkedListPtr& Next(void* list) {
                 // turns the current node into an address to the next item, then dereferencing
                 return *Memory::TransmutePtr<LinkedListPtr>(list);
             }
 
             // calculates amt. of memory to allocate next, without storing to save 1 int
             usize ShouldAllocNum() const {
-                T** l = listToFree;
+                T** l = (T**)listToFree;
                 usize numAllocs = MinNumAllocs;
 
                 while (numAllocs * 2 <= MaxNumAllocs && l) {
-                    l = Next(l);
+                    l = (T**)Next(l);
                     numAllocs *= 2;
                 }
                 return numAllocs;
@@ -131,7 +131,7 @@ namespace Quasi {
                 // alloc new memory: [listToFree tracker, T, ...(usableMemory tracker) T]
                 const usize bytes = ALIGNMENT + ALIGNED_SIZE * numAlloc;
                 Add(AllocateRaw(bytes), bytes);
-                return usableMemory;
+                return (T*)usableMemory;
             }
         };
 
@@ -349,7 +349,7 @@ namespace Quasi {
         // penalty is payed at the first insert, and not before. Lookup of this empty map works
         // because everybody points to DummyInfoByte::b. parameter bucket_count is dictated by the
         // standard, but we can ignore it.
-        explicit HashTable(Hasher h = {}) : hasher(std::move(h)) {}
+        HashTable(Hasher h = {}) : hasher(std::move(h)) {}
 
         HashTable(Collection<PairType> auto&& kvpairs, Hasher h = {}) : hasher(std::move(h)) {
             Insert(kvpairs);
@@ -365,7 +365,7 @@ namespace Quasi {
             return ht;
         }
 
-        void MemberwiseCopy(HashTable& t) {
+        void MemberwiseCopy(const HashTable& t) {
             hashMultiplier = t.hashMultiplier;
             kvData         = t.kvData;
             infoData       = t.infoData;

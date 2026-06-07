@@ -15,7 +15,7 @@ flat out int vPrim;
 uniform vec2 screenSize;
 
 void main() {
-   gl_Position = vec4(position * 2 / screenSize - 1.0, 1.0, 1.0);
+   gl_Position = vec4((position * 2 / screenSize - 1.0) * vec2(1.0, -1.0), 1.0, 1.0);
    vUVs = vec4(uv, rs);
    vPrim = prim;
 }

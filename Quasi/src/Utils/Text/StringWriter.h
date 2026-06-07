@@ -18,6 +18,7 @@ namespace Quasi::Text {
         static StringWriter WriteToFile(std::FILE* file);
         static StringWriter WriteToConsole();
         static StringWriter WriteToError();
+        static StringWriter NoWrite();
 
         static void StringWriteCallback(void* s, Str str);
         static void FileWriteCallback(void* file, Str str);

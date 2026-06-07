@@ -174,10 +174,11 @@ namespace Quasi {
         using EquivalentIntSigned = SAME_SIZED_SIGNED; \
         static constexpr SAME_SIZED SIGN_MASK     =  (SAME_SIZED)1 << (sizeof(FLOAT) * 8 - 1); \
         static constexpr SAME_SIZED MANTISSA_MASK = ((SAME_SIZED)1 << MANTISSA_BITS) - 1; \
-        static constexpr SAME_SIZED EXPONENT_MASK = ((SAME_SIZED)1 << EXPONENT_BITS) - MANTISSA_MASK - 1; \
+        static constexpr SAME_SIZED EXPONENT_MASK = SIGN_MASK - 1 - MANTISSA_MASK; \
+        static constexpr SAME_SIZED QNAN_TEMPLATE = EXPONENT_MASK | ((SAME_SIZED)1 << (MANTISSA_BITS - 1)); \
         \
-        static FLOAT FromBits(SAME_SIZED x) { return __builtin_bit_cast(FLOAT, x); } \
-        static SAME_SIZED BitsOf(FLOAT f)   { return __builtin_bit_cast(SAME_SIZED, f); } \
+        static constexpr FLOAT FromBits(SAME_SIZED x) { return __builtin_bit_cast(FLOAT, x); } \
+        static constexpr SAME_SIZED BitsOf(FLOAT f)   { return __builtin_bit_cast(SAME_SIZED, f); } \
         static bool IsSignedNegative(FLOAT f) { return (BitsOf(f) & SIGN_MASK) != 0; } \
         static bool IsSignedPositive(FLOAT f) { return (BitsOf(f) & SIGN_MASK) == 0; } \
         static FLOAT Sign(FLOAT f) { return f == 0 ? f : f > 0 ? 1 : f < 0 ? -1 : NAN; } \
@@ -210,6 +211,9 @@ namespace Quasi {
         static bool IsFinite(FLOAT f)  { return std::abs(f) < INFINITY; } \
         static bool IsSubnorm(FLOAT f) { return Classify(f) == FpClassification::SUBNORM; } \
         static bool IsNorm(FLOAT f)    { return Classify(f) == FpClassification::NORM; } \
+        \
+        static constexpr FLOAT QNaN(SAME_SIZED payload) { return FromBits(QNAN_TEMPLATE | (payload & MANTISSA_MASK)); } \
+        static SAME_SIZED QNaNPayload(FLOAT f) { return IsNaN(f) ? BitsOf(f) & (MANTISSA_MASK >> 1) : 0; } \
         \
         static FLOAT ImmediateIncr(FLOAT f) { \
             const SAME_SIZED bits = BitsOf(f); \
