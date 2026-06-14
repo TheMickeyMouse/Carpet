@@ -7,15 +7,17 @@ Widget {
         text: "What's the matter? \tHe said: \"why hello,,,\"   lemme test  out this word wrap feature rq...";
         padding: 30;
         margin: 30;
-        width: 300;
         height: 100;
         fontSize: 19;
         background: #fff8;
+        borderColor: #aaf;
+        borderRadius: 40;
     }
     Text {
         text: "Line two!";
         padding: 30;
         fontSize: 19;
+        height: 19;
         color: #f00;
         background: #faa8;
     }
